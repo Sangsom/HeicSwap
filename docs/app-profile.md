@@ -3,7 +3,7 @@
 > **Last updated**: 2026-06-20
 > **Bundle ID**: com.domanovs.rinalds.ios.HeicSwap
 > **Minimum iOS**: 26.0
-> **Status**: Planning (project scaffolded — tasks 1.1–1.2 complete; features not yet built)
+> **Status**: Planning (project scaffolded — tasks 1.1–1.3 complete; features not yet built)
 
 ---
 
@@ -81,7 +81,7 @@ HeicSwap/
 ├── Models/         # Domain models & enums (task 2.1)
 ├── Services/       # PurchaseService, AnalyticsService
 ├── Features/       # Home, Settings (placeholders)
-├── DesignSystem/   # Colors, Typography (Warm Darkroom theme in task 1.3)
+├── DesignSystem/   # Warm Darkroom tokens — Theme namespace: Colors, Typography (+Font.serif), Layout, Gradients (task 1.3)
 ├── Resources/      # Assets, LaunchScreen
 ├── Components/     # EmptyStateView, PaywallPresenter
 ├── Core/           # ServiceEnvironment (DI), utilities, placeholders
@@ -118,7 +118,6 @@ Not yet submitted. Metadata (name/subtitle/keywords via Astro), 5 screenshots, a
 | Issue | Severity | Notes |
 |-------|----------|-------|
 | Placeholder shell | Low | `MainTabView` + Home "Hello, world!" are template placeholders, replaced in task 4.1 |
-| `DesignSystem` holds template tokens | Low | `Theme`/`Colors`/`Typography` are template defaults; reworked into Warm Darkroom in task 1.3 |
 | Leftover `firebase-debug.log` | Low | Stray file in repo root from prior Firebase tooling; unrelated to the build, safe to delete |
 
 ---
@@ -137,3 +136,4 @@ Not yet submitted. Metadata (name/subtitle/keywords via Astro), 5 screenshots, a
 |------|---------|-------------|
 | 2026-06-20 | Initial profile created; project scaffolded (Swift 6 / iOS 26 / strict concurrency), renamed RDTemplate → HeicSwap, Firebase removed | 1.1 via /task |
 | 2026-06-20 | Added TelemetryDeck (SwiftSDK 2.14.1) via SwiftPM; both SDKs fronted by `PurchaseClient`/`AnalyticsClient` protocols; config-based keys; deferred init | 1.2 via /task |
+| 2026-06-20 | Built Warm Darkroom design system: 11 light/dark color tokens (asset catalog), serif display type scale + `Font.serif(_:weight:)` helper, 4pt spacing + radius constants, safelight gradient; `AccentColor` set to safelight amber; debug-only token-gallery preview | 1.3 via /task |
