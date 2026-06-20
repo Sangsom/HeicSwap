@@ -1,8 +1,10 @@
 //
-//  AnalyticsService.swift
+//  AnalyticsClient.swift
 //  HeicSwap
 //
-//  Created by Rinalds Domanovs on 23/02/2026.
+//  The analytics boundary. Feature code depends on `AnalyticsClient` and the
+//  type-safe `AnalyticsEvent` — never on a concrete analytics SDK. The production
+//  conformer (`TelemetryDeckAnalyticsClient`) is the only file that imports the SDK.
 //
 
 import Foundation
@@ -10,6 +12,7 @@ import Foundation
 // MARK: - Analytics Event
 
 /// Type-safe analytics events. Maps to analytics event names and parameters.
+/// The concrete event catalog is finalized in the analytics task (9.1); these are seeds.
 enum AnalyticsEvent {
     case onboardingStarted
     case tabSelected(tab: String)
@@ -41,13 +44,21 @@ enum AnalyticsEvent {
     }
 }
 
-// MARK: - Analytics Service Protocol
+// MARK: - Analytics Client
 
-protocol AnalyticsService {
+/// Abstraction over the analytics SDK so feature code never imports it directly
+/// (eases testing and the planned backend swap). Production conformer:
+/// `TelemetryDeckAnalyticsClient`; tests and previews use `StubAnalyticsClient`.
+protocol AnalyticsClient {
+    /// Initializes the underlying analytics SDK. Call once, off the launch critical path.
+    func configure()
     func logEvent(_ name: String, parameters: [String: Any]?)
 }
 
-extension AnalyticsService {
+extension AnalyticsClient {
+    /// No-op by default so stub/test conformers need not implement it.
+    func configure() {}
+
     func logEvent(_ name: String) {
         logEvent(name, parameters: nil)
     }
@@ -59,7 +70,9 @@ extension AnalyticsService {
 
 // MARK: - Stub Implementation
 
-final class StubAnalyticsService: AnalyticsService {
+/// No-op analytics for previews, tests, and the `@Environment` default. Logs to the
+/// console in DEBUG so events are visible without sending anything anywhere.
+final class StubAnalyticsClient: AnalyticsClient {
     func logEvent(_ name: String, parameters: [String: Any]? = nil) {
         #if DEBUG
         print("[Analytics] \(name) \(parameters ?? [:])")

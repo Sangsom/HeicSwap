@@ -10,6 +10,7 @@
 		168EE8702F4CB64E00576837 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 168EE8712F4CB64E00576837 /* XCTest.framework */; };
 		168EEAE52F4D513400576837 /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = 168EEAE42F4D513400576837 /* RevenueCat */; };
 		168EEAE72F4D513400576837 /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = 168EEAE62F4D513400576837 /* RevenueCatUI */; };
+		FA0000000000000000000003 /* TelemetryDeck in Frameworks */ = {isa = PBXBuildFile; productRef = FA0000000000000000000002 /* TelemetryDeck */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -49,6 +50,7 @@
 			files = (
 				168EEAE72F4D513400576837 /* RevenueCatUI in Frameworks */,
 				168EEAE52F4D513400576837 /* RevenueCat in Frameworks */,
+				FA0000000000000000000003 /* TelemetryDeck in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -114,6 +116,7 @@
 			packageProductDependencies = (
 				168EEAE42F4D513400576837 /* RevenueCat */,
 				168EEAE62F4D513400576837 /* RevenueCatUI */,
+				FA0000000000000000000002 /* TelemetryDeck */,
 			);
 			productName = HeicSwap;
 			productReference = 168EE8592F4CB64D00576837 /* HeicSwap.app */;
@@ -171,6 +174,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				168EEAE32F4D513400576837 /* XCRemoteSwiftPackageReference "purchases-ios" */,
+				FA0000000000000000000001 /* XCRemoteSwiftPackageReference "SwiftSDK" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 168EE85A2F4CB64D00576837 /* Products */;
@@ -384,6 +388,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_REVENUECAT_API_KEY = "$(REVENUECAT_API_KEY)";
+				INFOPLIST_KEY_TELEMETRYDECK_APP_ID = "$(TELEMETRYDECK_APP_ID)";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -431,6 +436,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_REVENUECAT_API_KEY = "$(REVENUECAT_API_KEY)";
+				INFOPLIST_KEY_TELEMETRYDECK_APP_ID = "$(TELEMETRYDECK_APP_ID)";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -542,6 +548,14 @@
 				minimumVersion = 5.59.2;
 			};
 		};
+		FA0000000000000000000001 /* XCRemoteSwiftPackageReference "SwiftSDK" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/TelemetryDeck/SwiftSDK.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.14.1;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -554,6 +568,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 168EEAE32F4D513400576837 /* XCRemoteSwiftPackageReference "purchases-ios" */;
 			productName = RevenueCatUI;
+		};
+		FA0000000000000000000002 /* TelemetryDeck */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FA0000000000000000000001 /* XCRemoteSwiftPackageReference "SwiftSDK" */;
+			productName = TelemetryDeck;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

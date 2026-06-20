@@ -33,7 +33,7 @@ struct MainTabView: View {
 
 #Preview {
     let appState = AppState(
-        analyticsService: StubAnalyticsService(),
+        analyticsClient: StubAnalyticsClient(),
         purchaseService: PurchaseService()
     )
     return MainTabView(appState: appState)

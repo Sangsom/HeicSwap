@@ -13,7 +13,7 @@ import SwiftUI
 final class AppState {
     var selectedTab: MainTab = .home
 
-    let analyticsService: any AnalyticsService
+    let analyticsClient: any AnalyticsClient
     let purchaseService: PurchaseService
 
     /// Observes app foregrounding for the lifetime of the app. `AppState` is the
@@ -21,14 +21,16 @@ final class AppState {
     /// needs no explicit cancellation.
     private var foregroundObserverTask: Task<Void, Never>?
 
-    init(analyticsService: any AnalyticsService, purchaseService: PurchaseService) {
-        self.analyticsService = analyticsService
+    init(analyticsClient: any AnalyticsClient, purchaseService: PurchaseService) {
+        self.analyticsClient = analyticsClient
         self.purchaseService = purchaseService
         observeForeground()
     }
 
-    /// Loads initial app state. Call once at launch.
+    /// Loads initial app state. Called from `.task` after the first frame, so SDK
+    /// configuration stays off the launch critical path.
     func loadInitialState() {
+        analyticsClient.configure()
         purchaseService.configure()
     }
 

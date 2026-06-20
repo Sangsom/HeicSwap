@@ -15,4 +15,10 @@ enum SecretsProvider {
     static var revenueCatAPIKey: String? {
         Bundle.main.infoDictionary?["REVENUECAT_API_KEY"] as? String
     }
+
+    /// TelemetryDeck app ID for privacy-first analytics.
+    /// Set in .secrets as TELEMETRYDECK_APP_ID.
+    static var telemetryDeckAppID: String? {
+        Bundle.main.infoDictionary?["TELEMETRYDECK_APP_ID"] as? String
+    }
 }

@@ -7,16 +7,16 @@
 
 import SwiftUI
 
-// MARK: - Analytics Service
+// MARK: - Analytics Client
 
-private struct AnalyticsServiceKey: EnvironmentKey {
-    static let defaultValue: any AnalyticsService = StubAnalyticsService()
+private struct AnalyticsClientKey: EnvironmentKey {
+    static let defaultValue: any AnalyticsClient = StubAnalyticsClient()
 }
 
 extension EnvironmentValues {
-    var analyticsService: any AnalyticsService {
-        get { self[AnalyticsServiceKey.self] }
-        set { self[AnalyticsServiceKey.self] = newValue }
+    var analyticsClient: any AnalyticsClient {
+        get { self[AnalyticsClientKey.self] }
+        set { self[AnalyticsClientKey.self] = newValue }
     }
 }
 

@@ -3,7 +3,7 @@
 > **Last updated**: 2026-06-20
 > **Bundle ID**: com.domanovs.rinalds.ios.HeicSwap
 > **Minimum iOS**: 26.0
-> **Status**: Planning (project scaffolded — task 1.1 complete; features not yet built)
+> **Status**: Planning (project scaffolded — tasks 1.1–1.2 complete; features not yet built)
 
 ---
 
@@ -52,8 +52,8 @@ RAW input · WebP output · Share Extension · history/presets · iPad
 | Architecture | MVVM with `@Observable` | Services injected via `@Environment`; `AppState` root |
 | Data Persistence | None planned | Stateless converter; value types (Sendable) |
 | Networking | None | **Zero network egress** is a product guarantee (CI test in task 10.4) |
-| Monetization | RevenueCat | Thin `PurchaseService` wrapper; `PaywallPresenter` |
-| Analytics | TelemetryDeck (planned) + MetricKit | Privacy-first; **no Firebase**. Currently `StubAnalyticsService` |
+| Monetization | RevenueCat | Behind `PurchaseClient` protocol (`PurchaseService` wrapper); paywall in 6.x |
+| Analytics | TelemetryDeck (wired) + MetricKit (planned) | Privacy-first; **no Firebase**. SDK behind `AnalyticsClient` (`TelemetryDeckAnalyticsClient`); events in 9.1 |
 | CI/CD | Fastlane | `build` / `beta` / `screenshots` lanes |
 | Swift Version | 6.0 | Strict concurrency = complete; default actor isolation = MainActor |
 
@@ -61,8 +61,11 @@ RAW input · WebP output · Share Extension · history/presets · iPad
 | Package | Purpose | Risk |
 |---------|---------|------|
 | RevenueCat (purchases-ios 5.79.0) | Subscriptions / paywall | Low |
+| TelemetryDeck (SwiftSDK 2.14.1) | Privacy-first analytics | Low |
 
-> Firebase (Analytics + Crashlytics) was removed from the template during task 1.1 — it conflicts with HeicSwap's zero-network / privacy-first positioning. Analytics will be added via TelemetryDeck (task 9.1).
+> The only two third-party SDKs, both pinned to the current major (`upToNextMajorVersion`). Each is fronted by a thin protocol (`PurchaseClient` / `AnalyticsClient`) so feature code never imports them directly — only `PurchaseService`, `TelemetryDeckAnalyticsClient`, and the (later) paywall component do. API keys come from `.secrets` → `Secrets.xcconfig` → Info.plist → `SecretsProvider` (never hardcoded). SDK init is deferred to `AppState.loadInitialState()` (`.task`, after first frame).
+>
+> Firebase (Analytics + Crashlytics) was removed from the template during task 1.1 — it conflicts with HeicSwap's zero-network / privacy-first positioning. TelemetryDeck is wired in 1.2; the event catalog + MetricKit land in task 9.1.
 
 ---
 
@@ -133,3 +136,4 @@ Not yet submitted. Metadata (name/subtitle/keywords via Astro), 5 screenshots, a
 | Date | Changes | Triggered By |
 |------|---------|-------------|
 | 2026-06-20 | Initial profile created; project scaffolded (Swift 6 / iOS 26 / strict concurrency), renamed RDTemplate → HeicSwap, Firebase removed | 1.1 via /task |
+| 2026-06-20 | Added TelemetryDeck (SwiftSDK 2.14.1) via SwiftPM; both SDKs fronted by `PurchaseClient`/`AnalyticsClient` protocols; config-based keys; deferred init | 1.2 via /task |

@@ -11,20 +11,20 @@ import SwiftUI
 struct HeicSwapApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
-    private let analyticsService: any AnalyticsService
+    private let analyticsClient: any AnalyticsClient
     private let purchaseService: PurchaseService
     private let appState: AppState
 
     init() {
-        analyticsService = StubAnalyticsService()
+        analyticsClient = TelemetryDeckAnalyticsClient()
         purchaseService = PurchaseService()
-        appState = AppState(analyticsService: analyticsService, purchaseService: purchaseService)
+        appState = AppState(analyticsClient: analyticsClient, purchaseService: purchaseService)
     }
 
     var body: some Scene {
         WindowGroup {
             MainTabView(appState: appState)
-                .environment(\.analyticsService, analyticsService)
+                .environment(\.analyticsClient, analyticsClient)
                 .environment(\.purchaseService, purchaseService)
                 .task {
                     appState.loadInitialState()

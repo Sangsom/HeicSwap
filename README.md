@@ -30,7 +30,7 @@ Before first run, configure these items:
 
 | Item | Purpose |
 |------|---------|
-| **Secrets.xcconfig** | Generated at build from `.secrets` via a Run Script. Copy `.secrets.example` → `.secrets`, add `REVENUECAT_API_KEY`. Never commit `.secrets`. |
+| **Secrets.xcconfig** | Generated at build from `.secrets` via a Run Script. Copy `.secrets.example` → `.secrets`, add `REVENUECAT_API_KEY` and `TELEMETRYDECK_APP_ID`. Never commit `.secrets`. |
 | **StoreKit config** | Add a `.storekit` configuration file for local subscription testing, then enable it in Scheme → Run → Options → StoreKit Configuration. (Added in the monetization task.) |
 
 See [HeicSwap/Documentation/Features.md](HeicSwap/Documentation/Features.md) for architecture details.
@@ -41,7 +41,7 @@ Set the entitlement identifier in the RevenueCat Dashboard (Project → Entitlem
 
 ### Analytics & Privacy
 
-HeicSwap is privacy-first: **no third-party tracking SDKs, and no network egress during conversion.** Analytics is abstracted behind the `AnalyticsService` protocol (currently a no-op `StubAnalyticsService`); a privacy-respecting backend (TelemetryDeck) and MetricKit crash reporting are added in a later task.
+HeicSwap is privacy-first: **no ad/tracking SDKs (no Firebase), and no network egress during conversion.** Analytics is abstracted behind the `AnalyticsClient` protocol so feature code never imports an SDK. The production backend is the privacy-respecting `TelemetryDeckAnalyticsClient` (no-op until `TELEMETRYDECK_APP_ID` is set); previews and tests use `StubAnalyticsClient`. The event catalog and MetricKit reporting are added in a later task (9.1). In-app purchases are likewise fronted by `PurchaseClient` (`PurchaseService`, RevenueCat-backed).
 
 ### Fastlane
 
@@ -65,7 +65,7 @@ Use **Swift Package Manager** only:
 HeicSwap/
 ├── App/            # App entry, AppDelegate, AppState, MainTabView
 ├── Models/         # Domain models & enums
-├── Services/       # PurchaseService, AnalyticsService
+├── Services/       # PurchaseClient/PurchaseService, AnalyticsClient/TelemetryDeckAnalyticsClient
 ├── Features/       # Feature screens (Convert, Settings, …)
 ├── DesignSystem/   # Colors, typography, design tokens
 ├── Resources/      # Assets, LaunchScreen
@@ -78,5 +78,5 @@ HeicSwap/
 
 - **Swift 6** — strict concurrency = complete
 - **SwiftUI** — primary UI framework; MVVM with `@Observable`
-- **Swift Package Manager** — dependency management (RevenueCat)
+- **Swift Package Manager** — dependency management (RevenueCat, TelemetryDeck)
 - **Swift Testing** — unit tests (`@Test`, `#expect`)
