@@ -3,7 +3,7 @@
 > **Last updated**: 2026-06-20
 > **Bundle ID**: com.domanovs.rinalds.ios.HeicSwap
 > **Minimum iOS**: 26.0
-> **Status**: Planning (project scaffolded — tasks 1.1–1.3 + 2.1–2.2 + 3.1 complete; features not yet built)
+> **Status**: Planning (project scaffolded — tasks 1.1–1.3 + 2.1–2.2 + 3.1–3.2 complete; features not yet built)
 
 ---
 
@@ -79,7 +79,7 @@ Currently a placeholder `MainTabView` (Home / Settings) from the template. The r
 HeicSwap/
 ├── App/            # HeicSwapApp, AppDelegate (minimal), AppState, MainTabView
 ├── Models/         # Core Sendable value types (2.1): OutputFormat, ResizeMode, ConversionOptions, SourceItem/ItemStatus, Entitlement — all `nonisolated`; plus ValueGate (2.2) — value-gate policy
-├── Services/       # PurchaseService, AnalyticsService, ConversionEngine (3.1 — ImageIO transcode + bounded batch)
+├── Services/       # PurchaseService, AnalyticsService, ConversionEngine (3.1 — ImageIO transcode + bounded batch; 3.2 — maxDimension downscale + targetBytes quality search)
 ├── Features/       # Home, Settings (placeholders)
 ├── DesignSystem/   # Warm Darkroom tokens — Theme namespace: Colors, Typography (+Font.serif), Layout, Gradients (task 1.3)
 ├── Resources/      # Assets, LaunchScreen
@@ -140,3 +140,4 @@ Not yet submitted. Metadata (name/subtitle/keywords via Astro), 5 screenshots, a
 | 2026-06-20 | Defined core domain value types in `Models/` (OutputFormat, ResizeMode, ConversionOptions, SourceItem/ItemStatus/Source, Entitlement) — all `nonisolated` + `Sendable` to cross the engine/UI actor boundary under default-MainActor isolation; removed Models placeholder; hosted `HeicSwapTests` in the app (`TEST_HOST`/`BUNDLE_LOADER`) so it can `@testable import` the SwiftUI module; added `CoreModelsTests` (6 tests, passing) | 2.1 via /task |
 | 2026-06-20 | Added `ValueGate` (Models/) — single-source-of-truth value-gate policy: centralized `freeBatchLimit` (=5; A/B knob 3/5/8) + pure, stateless `requiresPro(items:options:)` (batch > limit ∥ stripsMetadata ∥ resize `.targetBytes`; PDF and `.maxDimension` stay free; no daily counter); added `ValueGateTests` (8 tests / 14 cases — AC1–3, batch boundary 4/5/6, empty batch, per-format, combined triggers; passing) | 2.2 via /task |
 | 2026-06-20 | Built `ConversionEngine` actor (Services/) — on-device ImageIO transcode HEIC/PNG/JPG → JPG/PNG/HEIC via `CGImageSourceCreateWithURL` + `CGImageDestinationAddImageFromSource` (color profile + metadata preserved, no held bitmap); `convertBatch` runs a bounded `TaskGroup` (2–4 in-flight, clamped to core count) with `autoreleasepool` per item, per-item `@Sendable` completion callback, and failure isolation; outputs to a per-run temp dir with collision-free names. `ConversionError`/`ConversionOutcome` are `nonisolated`+`Sendable`. PDF rejected (deferred to 3.4); resize/strip left as passthrough for 3.2/3.3. Added `ConversionEngineTests` (8 tests — AC1 valid+color-preserved across JPG/PNG/HEIC, AC2 per-item progress, AC3 corrupt-file isolation, empty batch, name collisions; passing) | 3.1 via /task |
+| 2026-06-20 | Added resize/compress to `ConversionEngine` — `encode` now dispatches on `ResizeMode`: `.none` keeps the faithful passthrough, `.maxDimension` downscales via `CGImageSourceCreateThumbnailAtIndex` (`kCGImageSourceThumbnailMaxPixelSize`, downsample-on-load, transform-applied, no upscale), `.targetBytes` runs a bounded JPEG/HEIC quality binary search (full-quality fast-path probe + ≤8 halvings, encodes from source frame into memory so no bitmap is held) landing at/under target; lossless (PNG) targetBytes falls back to a faithful encode. Output size read from disk (URL-based API unchanged). Added 6 `ConversionEngineTests` cases (AC1 maxDimension 2048 + aspect, no-upscale, large-photo downscale; AC2 targetBytes ≤ target + full-quality-fits + lossless fallback; 29 tests total, passing) | 3.2 via /task |

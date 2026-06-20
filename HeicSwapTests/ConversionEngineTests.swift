@@ -67,6 +67,50 @@ struct ConversionEngineTests {
         return url
     }
 
+    /// Writes a high-frequency pseudo-random sRGB image — incompressible noise, so its JPEG
+    /// size is dominated by quality (a solid color would compress to nothing and never exercise
+    /// the target-size search). Deterministic via a fixed seed so byte sizes are reproducible.
+    private func makeNoisyImage(
+        width: Int, height: Int, format: OutputFormat = .png, in directory: URL
+    ) throws -> URL {
+        let colorSpace = try #require(CGColorSpace(name: CGColorSpace.sRGB))
+        let bytesPerRow = width * 4
+        let count = bytesPerRow * height
+
+        let image: CGImage = try { () throws -> CGImage in
+            let buffer = UnsafeMutableRawPointer.allocate(byteCount: count, alignment: 1)
+            defer { buffer.deallocate() }
+            let bytes = buffer.assumingMemoryBound(to: UInt8.self)
+            var seed: UInt64 = 0x9E37_79B9_7F4A_7C15
+            for index in 0..<count {
+                seed ^= seed << 13; seed ^= seed >> 7; seed ^= seed << 17
+                bytes[index] = UInt8(truncatingIfNeeded: seed)
+            }
+            let context = try #require(CGContext(
+                data: buffer, width: width, height: height, bitsPerComponent: 8,
+                bytesPerRow: bytesPerRow, space: colorSpace,
+                bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
+            ))
+            // makeImage() snapshots the bitmap, so the buffer is safe to free after this returns.
+            return try #require(context.makeImage())
+        }()
+
+        let url = directory.appending(path: "noisy-\(UUID().uuidString).\(format.fileExtension)")
+        let destination = try #require(CGImageDestinationCreateWithURL(
+            url as CFURL, format.contentType.identifier as CFString, 1, nil
+        ))
+        CGImageDestinationAddImage(
+            destination, image, [kCGImageDestinationLossyCompressionQuality: 1.0] as CFDictionary
+        )
+        #expect(CGImageDestinationFinalize(destination))
+        return url
+    }
+
+    /// The on-disk byte size of a file.
+    private func fileSize(of url: URL) throws -> Int {
+        try #require(try url.resourceValues(forKeys: [.fileSizeKey]).fileSize)
+    }
+
     /// Pixel dimensions of an image on disk, read without fully decoding it.
     private func pixelSize(of url: URL) -> (width: Int, height: Int)? {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
@@ -237,5 +281,123 @@ struct ConversionEngineTests {
         #expect(outputs.count == 2)
         #expect(Set(outputs.map(\.lastPathComponent)).count == 2) // distinct file names
         #expect(outputs.allSatisfy { FileManager.default.fileExists(atPath: $0.path) })
+    }
+
+    // MARK: 3.2 — Resize (maxDimension)
+
+    @Test("maxDimension 2048: longest side ≤ 2048 and aspect ratio preserved")
+    func maxDimensionDownscalesAndPreservesAspect() async throws {
+        let workspace = try Workspace()
+        let engine = ConversionEngine(outputDirectory: workspace.root.appending(path: "out"))
+        // 3000×2000 (3:2) is larger than 2048 on its long edge, so it must downscale.
+        let source = try makeSourceImage(width: 3000, height: 2000, format: .png, in: workspace.root)
+
+        let output = try await engine.convert(
+            source, with: ConversionOptions(format: .jpg, resizeMode: .maxDimension(pixels: 2048))
+        )
+
+        let size = try #require(pixelSize(of: output))
+        #expect(max(size.width, size.height) <= 2048)
+        #expect(size.width == 2048 && size.height == 1365) // 3:2 within rounding (2000·2048/3000)
+        // Aspect ratio preserved to within a pixel of rounding.
+        let sourceRatio = 3000.0 / 2000.0
+        let outputRatio = Double(size.width) / Double(size.height)
+        #expect(abs(sourceRatio - outputRatio) < 0.01)
+    }
+
+    @Test("maxDimension never upscales a source already within the limit")
+    func maxDimensionDoesNotUpscale() async throws {
+        let workspace = try Workspace()
+        let engine = ConversionEngine(outputDirectory: workspace.root.appending(path: "out"))
+        let source = try makeSourceImage(width: 64, height: 48, format: .png, in: workspace.root)
+
+        let output = try await engine.convert(
+            source, with: ConversionOptions(format: .png, resizeMode: .maxDimension(pixels: 2048))
+        )
+
+        let size = try #require(pixelSize(of: output))
+        #expect(size.width == 64 && size.height == 48)
+    }
+
+    @Test("A large photo resizes to the limit (downsample-on-load path)")
+    func resizesLargePhoto() async throws {
+        // Proves the downscale path drives a large source down to the limit. True peak-memory
+        // bounding (AC3) is the Instruments step in the manual test plan / task 10.3.
+        let workspace = try Workspace()
+        let engine = ConversionEngine(outputDirectory: workspace.root.appending(path: "out"))
+        let source = try makeSourceImage(width: 4000, height: 3000, format: .jpg, in: workspace.root)
+
+        let output = try await engine.convert(
+            source, with: ConversionOptions(format: .jpg, resizeMode: .maxDimension(pixels: 1024))
+        )
+
+        let size = try #require(pixelSize(of: output))
+        #expect(max(size.width, size.height) == 1024)
+        #expect(size.width == 1024 && size.height == 768)
+    }
+
+    // MARK: 3.2 — Compress (targetBytes)
+
+    @Test("targetBytes: output lands at/under the target and its size is reported")
+    func targetBytesLandsUnderTarget() async throws {
+        let workspace = try Workspace()
+        let engine = ConversionEngine(outputDirectory: workspace.root.appending(path: "out"))
+        let source = try makeNoisyImage(width: 1500, height: 1000, format: .png, in: workspace.root)
+
+        // Baseline: full-quality JPEG size, so we pick a target that genuinely forces the search
+        // (comfortably below full quality, but well above the q=0 floor for noise).
+        let fullQuality = try await engine.convert(source, with: ConversionOptions(format: .jpg, quality: 1.0))
+        let fullSize = try fileSize(of: fullQuality)
+        let target = max(150_000, fullSize / 4)
+
+        let output = try await engine.convert(
+            source, with: ConversionOptions(format: .jpg, resizeMode: .targetBytes(target))
+        )
+
+        let outputSize = try fileSize(of: output)
+        #expect(outputSize <= target)            // AC2: at/under target
+        #expect(outputSize > 0)                  // a real image was produced
+        #expect(outputSize < fullSize)           // compression actually happened
+        // Output is a valid JPEG at the original dimensions (targetBytes adjusts quality, not size).
+        let imageSource = try #require(CGImageSourceCreateWithURL(output as CFURL, nil))
+        #expect(UTType(CGImageSourceGetType(imageSource)! as String) == .jpeg)
+        let size = try #require(pixelSize(of: output))
+        #expect(size.width == 1500 && size.height == 1000)
+    }
+
+    @Test("targetBytes keeps full quality untouched when it already fits")
+    func targetBytesKeepsFullQualityWhenItFits() async throws {
+        let workspace = try Workspace()
+        let engine = ConversionEngine(outputDirectory: workspace.root.appending(path: "out"))
+        let source = try makeNoisyImage(width: 800, height: 600, format: .png, in: workspace.root)
+
+        let fullQuality = try await engine.convert(source, with: ConversionOptions(format: .jpg, quality: 1.0))
+        let fullSize = try fileSize(of: fullQuality)
+
+        // Target far above full quality → fast path keeps the full-quality encode byte-for-byte.
+        let output = try await engine.convert(
+            source, with: ConversionOptions(format: .jpg, resizeMode: .targetBytes(fullSize * 4))
+        )
+
+        #expect(try fileSize(of: output) == fullSize)
+    }
+
+    @Test("targetBytes on a lossless format falls back to a faithful encode")
+    func targetBytesOnLosslessFormatFallsBack() async throws {
+        // PNG size can't be driven by quality, so the engine emits one faithful copy rather than
+        // failing or looping. The output may exceed the target — documented best-effort behavior.
+        let workspace = try Workspace()
+        let engine = ConversionEngine(outputDirectory: workspace.root.appending(path: "out"))
+        let source = try makeSourceImage(width: 200, height: 150, format: .jpg, in: workspace.root)
+
+        let output = try await engine.convert(
+            source, with: ConversionOptions(format: .png, resizeMode: .targetBytes(1_000))
+        )
+
+        #expect(output.pathExtension == "png")
+        let imageSource = try #require(CGImageSourceCreateWithURL(output as CFURL, nil))
+        #expect(UTType(CGImageSourceGetType(imageSource)! as String) == .png)
+        let size = try #require(pixelSize(of: output))
+        #expect(size.width == 200 && size.height == 150)
     }
 }

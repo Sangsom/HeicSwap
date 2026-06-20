@@ -8,10 +8,10 @@
 //  isolation and progress. 100% offline — ImageIO touches only the local file system,
 //  this type opens no sockets (the guarantee is locked by the CI test in task 10.4).
 //
-//  Scope note: 3.1 implements the format + quality transcode only. Resize (3.2),
-//  metadata stripping (3.3), and image→PDF assembly (3.4) layer onto this engine in
-//  their own tasks; the encode path below preserves color *and* metadata untouched so
-//  those features can branch from a faithful passthrough.
+//  Scope note: 3.1 implemented the format + quality transcode; 3.2 adds resizing —
+//  `.maxDimension` downscale-on-load and `.targetBytes` quality binary search. Metadata
+//  stripping (3.3) and image→PDF assembly (3.4) still layer on in their own tasks; the
+//  no-resize path stays a faithful color- and metadata-preserving passthrough.
 //
 
 import Foundation
@@ -72,6 +72,12 @@ actor ConversionEngine {
     static var defaultConcurrency: Int {
         min(4, max(2, ProcessInfo.processInfo.activeProcessorCount))
     }
+
+    /// Upper bound on quality-search encodes for `ResizeMode.targetBytes`. Eight halvings
+    /// resolve quality to ~1/256 — finer than the JPEG encoder's own granularity — so the
+    /// search converges well within the cap (PRD / task 3.2: "cap ~8 iterations"). A faithful
+    /// full-quality probe runs first as a fast path, so the worst case is one encode more.
+    static let maxQualitySearchIterations = 8
 
     /// Root directory outputs are written under. Each run gets a unique subdirectory inside
     /// it. Defaults to a dedicated folder in the system temporary directory; temp-file
@@ -230,11 +236,11 @@ actor ConversionEngine {
 
     /// The actual transcode — `nonisolated` so batch items run in parallel off the actor,
     /// and synchronous so each item's CF temporaries drain inside its own `autoreleasepool`,
-    /// keeping batch memory bounded.
+    /// keeping batch memory bounded. Dispatches on `resizeMode`:
     ///
-    /// Uses `CGImageDestinationAddImageFromSource`, which copies the source frame's properties
-    /// (embedded color profile, orientation, metadata) straight into the output without us
-    /// holding a decoded bitmap — faithful color, minimal memory.
+    /// - `.none` — a faithful passthrough copy (preserves color, orientation, metadata).
+    /// - `.maxDimension` — downscale-on-load via the ImageIO thumbnail generator.
+    /// - `.targetBytes` — a bounded quality binary search that lands at/under the target.
     nonisolated static func encode(
         source: URL, to destination: URL, options: ConversionOptions
     ) throws {
@@ -243,30 +249,166 @@ actor ConversionEngine {
         }
 
         try autoreleasepool {
-            guard let imageSource = CGImageSourceCreateWithURL(source as CFURL, nil),
-                  CGImageSourceGetCount(imageSource) > 0 else {
-                throw ConversionError.sourceUnreadable(source)
+            switch options.resizeMode {
+            case .none:
+                try encodePassthrough(source: source, to: destination, options: options)
+            case .maxDimension(let pixels):
+                try encodeDownscaled(
+                    source: source, to: destination, maxPixels: pixels, options: options
+                )
+            case .targetBytes(let targetBytes):
+                try encodeToTargetBytes(
+                    source: source, to: destination, targetBytes: targetBytes, options: options
+                )
             }
+        }
+    }
 
-            let type = options.format.contentType.identifier as CFString
-            guard let imageDestination = CGImageDestinationCreateWithURL(
-                destination as CFURL, type, 1, nil
+    /// Direct frame copy. `CGImageDestinationAddImageFromSource` carries the source frame's
+    /// properties (embedded color profile, orientation, metadata) straight into the output
+    /// without us holding a decoded bitmap — faithful color, minimal memory.
+    private nonisolated static func encodePassthrough(
+        source: URL, to destination: URL, options: ConversionOptions
+    ) throws {
+        guard let imageSource = CGImageSourceCreateWithURL(source as CFURL, nil),
+              CGImageSourceGetCount(imageSource) > 0 else {
+            throw ConversionError.sourceUnreadable(source)
+        }
+
+        let type = options.format.contentType.identifier as CFString
+        guard let imageDestination = CGImageDestinationCreateWithURL(
+            destination as CFURL, type, 1, nil
+        ) else {
+            throw ConversionError.destinationUnavailable(destination)
+        }
+
+        var properties: [CFString: Any] = [:]
+        if options.format.usesQuality {
+            properties[kCGImageDestinationLossyCompressionQuality] = options.quality
+        }
+
+        CGImageDestinationAddImageFromSource(
+            imageDestination, imageSource, 0, properties as CFDictionary
+        )
+
+        guard CGImageDestinationFinalize(imageDestination) else {
+            throw ConversionError.encodingFailed(destination)
+        }
+    }
+
+    /// Downscale so the longest edge is at most `maxPixels`, preserving aspect ratio. ImageIO's
+    /// thumbnail generator downsamples *as it decodes*, so a 48 MP source never lands in memory
+    /// at full resolution — this is what keeps peak memory bounded (task 3.2 AC3). The transform
+    /// is applied so the output is upright; a source already within the limit is never upscaled.
+    private nonisolated static func encodeDownscaled(
+        source: URL, to destination: URL, maxPixels: Int, options: ConversionOptions
+    ) throws {
+        guard let imageSource = CGImageSourceCreateWithURL(source as CFURL, nil),
+              CGImageSourceGetCount(imageSource) > 0 else {
+            throw ConversionError.sourceUnreadable(source)
+        }
+
+        let thumbnailOptions: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceThumbnailMaxPixelSize: max(1, maxPixels),
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+        ]
+        guard let downsized = CGImageSourceCreateThumbnailAtIndex(
+            imageSource, 0, thumbnailOptions as CFDictionary
+        ) else {
+            throw ConversionError.sourceUnreadable(source)
+        }
+
+        let type = options.format.contentType.identifier as CFString
+        guard let imageDestination = CGImageDestinationCreateWithURL(
+            destination as CFURL, type, 1, nil
+        ) else {
+            throw ConversionError.destinationUnavailable(destination)
+        }
+
+        var properties: [CFString: Any] = [:]
+        if options.format.usesQuality {
+            properties[kCGImageDestinationLossyCompressionQuality] = options.quality
+        }
+
+        CGImageDestinationAddImage(imageDestination, downsized, properties as CFDictionary)
+
+        guard CGImageDestinationFinalize(imageDestination) else {
+            throw ConversionError.encodingFailed(destination)
+        }
+    }
+
+    /// Re-encode at the highest quality whose output is at most `targetBytes` (e.g. "under 2 MB"),
+    /// the differentiated feature the native share sheet can't do. A full-quality probe runs
+    /// first; if it already fits we keep it untouched, otherwise a bounded binary search over
+    /// quality converges to the largest quality that fits. Each round encodes the source frame
+    /// into memory via `…AddImageFromSource` — no decoded bitmap is held, so memory stays bounded
+    /// even for very large photos. Lossless output (PNG) can't be sized by quality, so it falls
+    /// back to a single faithful encode.
+    private nonisolated static func encodeToTargetBytes(
+        source: URL, to destination: URL, targetBytes: Int, options: ConversionOptions
+    ) throws {
+        guard options.format.usesQuality else {
+            // Quality has no effect on a lossless codec; emit one faithful copy.
+            try encodePassthrough(source: source, to: destination, options: options)
+            return
+        }
+
+        guard let imageSource = CGImageSourceCreateWithURL(source as CFURL, nil),
+              CGImageSourceGetCount(imageSource) > 0 else {
+            throw ConversionError.sourceUnreadable(source)
+        }
+
+        let type = options.format.contentType.identifier as CFString
+        let target = max(0, targetBytes)
+
+        /// Encodes the frame at `quality` into memory, returning the encoded bytes.
+        func encodedData(quality: Double) throws -> Data {
+            let data = NSMutableData()
+            guard let imageDestination = CGImageDestinationCreateWithData(
+                data as CFMutableData, type, 1, nil
             ) else {
                 throw ConversionError.destinationUnavailable(destination)
             }
-
-            var properties: [CFString: Any] = [:]
-            if options.format.usesQuality {
-                properties[kCGImageDestinationLossyCompressionQuality] = options.quality
-            }
-
             CGImageDestinationAddImageFromSource(
-                imageDestination, imageSource, 0, properties as CFDictionary
+                imageDestination, imageSource, 0,
+                [kCGImageDestinationLossyCompressionQuality: quality] as CFDictionary
             )
-
             guard CGImageDestinationFinalize(imageDestination) else {
                 throw ConversionError.encodingFailed(destination)
             }
+            return data as Data
+        }
+
+        // Fast path: if full quality already fits, never degrade.
+        let fullQuality = try encodedData(quality: 1.0)
+        var best = fullQuality
+
+        if fullQuality.count > target {
+            // Binary-search the largest quality whose encoded size is within the target.
+            var low = 0.0
+            var high = 1.0
+            var fitting: Data?
+            for _ in 0..<maxQualitySearchIterations {
+                let mid = (low + high) / 2
+                let candidate = try encodedData(quality: mid)
+                if candidate.count <= target {
+                    fitting = candidate
+                    low = mid // room to spend on quality
+                } else {
+                    high = mid // must compress harder
+                }
+            }
+            // If even minimum quality overshoots (target below the format's floor), emit the
+            // smallest we can produce — best effort rather than a failure.
+            best = try fitting ?? encodedData(quality: 0.0)
+        }
+
+        do {
+            try best.write(to: destination, options: .atomic)
+        } catch {
+            throw ConversionError.encodingFailed(destination)
         }
     }
 }
