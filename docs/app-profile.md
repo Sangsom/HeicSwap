@@ -3,7 +3,7 @@
 > **Last updated**: 2026-06-20
 > **Bundle ID**: com.domanovs.rinalds.ios.HeicSwap
 > **Minimum iOS**: 26.0
-> **Status**: Planning (project scaffolded — tasks 1.1–1.3 + 2.1 complete; features not yet built)
+> **Status**: Planning (project scaffolded — tasks 1.1–1.3 + 2.1–2.2 complete; features not yet built)
 
 ---
 
@@ -78,7 +78,7 @@ Currently a placeholder `MainTabView` (Home / Settings) from the template. The r
 ```
 HeicSwap/
 ├── App/            # HeicSwapApp, AppDelegate (minimal), AppState, MainTabView
-├── Models/         # Core Sendable value types (2.1): OutputFormat, ResizeMode, ConversionOptions, SourceItem/ItemStatus, Entitlement — all `nonisolated`
+├── Models/         # Core Sendable value types (2.1): OutputFormat, ResizeMode, ConversionOptions, SourceItem/ItemStatus, Entitlement — all `nonisolated`; plus ValueGate (2.2) — value-gate policy
 ├── Services/       # PurchaseService, AnalyticsService
 ├── Features/       # Home, Settings (placeholders)
 ├── DesignSystem/   # Warm Darkroom tokens — Theme namespace: Colors, Typography (+Font.serif), Layout, Gradients (task 1.3)
@@ -138,3 +138,4 @@ Not yet submitted. Metadata (name/subtitle/keywords via Astro), 5 screenshots, a
 | 2026-06-20 | Added TelemetryDeck (SwiftSDK 2.14.1) via SwiftPM; both SDKs fronted by `PurchaseClient`/`AnalyticsClient` protocols; config-based keys; deferred init | 1.2 via /task |
 | 2026-06-20 | Built Warm Darkroom design system: 11 light/dark color tokens (asset catalog), serif display type scale + `Font.serif(_:weight:)` helper, 4pt spacing + radius constants, safelight gradient; `AccentColor` set to safelight amber; debug-only token-gallery preview | 1.3 via /task |
 | 2026-06-20 | Defined core domain value types in `Models/` (OutputFormat, ResizeMode, ConversionOptions, SourceItem/ItemStatus/Source, Entitlement) — all `nonisolated` + `Sendable` to cross the engine/UI actor boundary under default-MainActor isolation; removed Models placeholder; hosted `HeicSwapTests` in the app (`TEST_HOST`/`BUNDLE_LOADER`) so it can `@testable import` the SwiftUI module; added `CoreModelsTests` (6 tests, passing) | 2.1 via /task |
+| 2026-06-20 | Added `ValueGate` (Models/) — single-source-of-truth value-gate policy: centralized `freeBatchLimit` (=5; A/B knob 3/5/8) + pure, stateless `requiresPro(items:options:)` (batch > limit ∥ stripsMetadata ∥ resize `.targetBytes`; PDF and `.maxDimension` stay free; no daily counter); added `ValueGateTests` (8 tests / 14 cases — AC1–3, batch boundary 4/5/6, empty batch, per-format, combined triggers; passing) | 2.2 via /task |
