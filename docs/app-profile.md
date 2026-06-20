@@ -3,7 +3,7 @@
 > **Last updated**: 2026-06-20
 > **Bundle ID**: com.domanovs.rinalds.ios.HeicSwap
 > **Minimum iOS**: 26.0
-> **Status**: Planning (project scaffolded — tasks 1.1–1.3 complete; features not yet built)
+> **Status**: Planning (project scaffolded — tasks 1.1–1.3 + 2.1 complete; features not yet built)
 
 ---
 
@@ -78,7 +78,7 @@ Currently a placeholder `MainTabView` (Home / Settings) from the template. The r
 ```
 HeicSwap/
 ├── App/            # HeicSwapApp, AppDelegate (minimal), AppState, MainTabView
-├── Models/         # Domain models & enums (task 2.1)
+├── Models/         # Core Sendable value types (2.1): OutputFormat, ResizeMode, ConversionOptions, SourceItem/ItemStatus, Entitlement — all `nonisolated`
 ├── Services/       # PurchaseService, AnalyticsService
 ├── Features/       # Home, Settings (placeholders)
 ├── DesignSystem/   # Warm Darkroom tokens — Theme namespace: Colors, Typography (+Font.serif), Layout, Gradients (task 1.3)
@@ -137,3 +137,4 @@ Not yet submitted. Metadata (name/subtitle/keywords via Astro), 5 screenshots, a
 | 2026-06-20 | Initial profile created; project scaffolded (Swift 6 / iOS 26 / strict concurrency), renamed RDTemplate → HeicSwap, Firebase removed | 1.1 via /task |
 | 2026-06-20 | Added TelemetryDeck (SwiftSDK 2.14.1) via SwiftPM; both SDKs fronted by `PurchaseClient`/`AnalyticsClient` protocols; config-based keys; deferred init | 1.2 via /task |
 | 2026-06-20 | Built Warm Darkroom design system: 11 light/dark color tokens (asset catalog), serif display type scale + `Font.serif(_:weight:)` helper, 4pt spacing + radius constants, safelight gradient; `AccentColor` set to safelight amber; debug-only token-gallery preview | 1.3 via /task |
+| 2026-06-20 | Defined core domain value types in `Models/` (OutputFormat, ResizeMode, ConversionOptions, SourceItem/ItemStatus/Source, Entitlement) — all `nonisolated` + `Sendable` to cross the engine/UI actor boundary under default-MainActor isolation; removed Models placeholder; hosted `HeicSwapTests` in the app (`TEST_HOST`/`BUNDLE_LOADER`) so it can `@testable import` the SwiftUI module; added `CoreModelsTests` (6 tests, passing) | 2.1 via /task |
