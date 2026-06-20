@@ -1,0 +1,290 @@
+---
+alwaysApply: true
+---
+# File Organization & Naming Conventions
+
+## Directory Structure
+
+Organize app files into feature folders following this structure:
+
+```
+Pulse/
+├── Assets.xcassets/          # App icons, colors, and images
+├── Models/                    # Data models and business logic
+├── Views/                     # SwiftUI screens organized by feature
+├── Services/                  # Business logic services
+├── Utilities/                 # Swift extensions and utilities
+├── Core/                      # Core business logic and data management
+│   └── DesignSystem/          # Design system components and tokens
+└── Documentation/              # App documentation and reference materials
+```
+
+### Detailed Structure
+
+#### Assets.xcassets/
+- **Colors/**: Color assets following design system tokens
+- **Images/**: Image assets and icons (prefer SF Symbols)
+- **AppIcon.appiconset/**: App icon sets
+
+#### Models/
+- Data models (Core Data entities, domain models)
+- Business logic related to data structures
+- Example: `CollectionModel.swift`, `ItemModel.swift`, `TemplateModel.swift`
+
+#### Views/
+- SwiftUI screens organized by feature
+- Sub-views that compose screens
+- Feature-specific view components
+- Examples:
+  - `Collections/`: `CollectionsScreen.swift`, `CollectionCardView.swift`, `CollectionFormView.swift`
+  - `Items/`: `ItemsScreen.swift`, `ItemCardView.swift`
+  - `Value/`: `ValueScreen.swift`, `StatCardView.swift`
+  - `Shared/`: Reusable view components
+
+**Component Extraction Guidelines:**
+- Extract components when a screen file exceeds ~400-500 lines
+- Extract reusable sub-views into separate `*View.swift` files
+- Extract helper views (sheets, modals, cards) into separate files
+- Each component file should include its own `#Preview` for development
+- Keep related components in the same feature folder
+- Use `private` access control for components only used within a feature
+
+#### Services/
+- Service classes for external integrations
+- Business logic services
+- Data services
+- API services
+- Examples: `DataService.swift`, `CalculationService.swift`, `APIService.swift`
+
+#### Utilities/
+- Swift extensions
+- Helper utilities
+- Common utilities
+- Examples: `Color+Hex.swift`, `Date+Extensions.swift`, `String+Extensions.swift`
+
+#### Core/
+- Core business logic
+- Data management (DataController, Repositories)
+- Core protocols and abstractions
+- Design system components and tokens
+- Examples:
+  - `Data/`: `DataController.swift`, `Repositories/`, `Validation/`
+  - `DesignSystem/`: `Colors.swift`, `Typography.swift`, `Spacing.swift`, `Components/`
+  - `UI/`: Core UI components (`SelectionStore.swift`, `HapticFeedback.swift`)
+
+#### Documentation/
+- App documentation
+- Reference materials
+- Design documents
+- Examples: `Features.md`, `API.md`, `design-system/`
+
+## File Naming Conventions
+
+### Swift Files
+
+Use **PascalCase** for file names and include descriptive suffixes:
+
+#### Screen Files
+- **Suffix**: `Screen.swift`
+- **Usage**: SwiftUI feature container screens (main screens for a feature)
+- **Examples**: 
+  - `CollectionsScreen.swift`
+  - `ItemsScreen.swift`
+  - `ValueScreen.swift`
+
+#### View Files
+- **Suffix**: `View.swift`
+- **Usage**: SwiftUI sub-views that compose screens (reusable components, cards, forms)
+- **Examples**:
+  - `CollectionCardView.swift`
+  - `CollectionFormView.swift`
+  - `ItemCardView.swift`
+  - `StatCardView.swift`
+
+#### ViewModel Files
+- **Suffix**: `ViewModel.swift`
+- **Usage**: View models for managing screen state and business logic
+- **Examples**:
+  - `CollectionsViewModel.swift`
+  - `ItemsViewModel.swift`
+  - `ValueViewModel.swift`
+
+#### Model Files
+- **Suffix**: `Model.swift`
+- **Usage**: Data models and domain models (non-Core Data)
+- **Examples**:
+  - `CollectionModel.swift`
+  - `ItemModel.swift`
+  - `TemplateModel.swift`
+
+#### Service Files
+- **Suffix**: `Service.swift`
+- **Usage**: Service classes for external integrations and business logic
+- **Examples**:
+  - `HealthKitService.swift`
+  - `ValuationService.swift`
+  - `DefaultTemplateService.swift`
+  - `TemplateValidatorService.swift`
+
+#### Extension Files
+- **Suffix**: `Extension.swift` or `+Category.swift`
+- **Usage**: Swift extensions for existing types
+- **Examples**:
+  - `Color+Hex.swift`
+  - `Date+Extensions.swift`
+  - `String+Extensions.swift`
+  - `View+Theme.swift`
+
+#### Repository Files
+- **Suffix**: `Repository.swift`
+- **Usage**: Data access layer repositories
+- **Examples**:
+  - `CollectionsRepository.swift`
+  - `ItemsRepository.swift`
+  - `TemplatesRepository.swift`
+
+#### Protocol Files
+- **Suffix**: `Protocols.swift` or `Protocol.swift`
+- **Usage**: Protocol definitions
+- **Examples**:
+  - `RepositoryProtocols.swift`
+  - `ServiceProtocol.swift`
+
+#### Utility Files
+- **Suffix**: `Utility.swift` or descriptive name
+- **Usage**: Utility classes and helpers
+- **Examples**:
+  - `HapticFeedback.swift`
+  - `Theme.swift`
+  - `SelectionStore.swift`
+
+## File Organization Rules
+
+### When Creating New Files
+
+1. **Determine the file type** (Screen, View, ViewModel, Model, Service, etc.)
+2. **Choose the appropriate directory** based on the file type
+3. **Use PascalCase** with the correct suffix
+4. **Group related files** in feature folders when appropriate
+
+### Feature Folders
+
+For complex features, create subdirectories within the main category:
+
+```
+Views/
+├── Collections/
+│   ├── CollectionsScreen.swift
+│   ├── CollectionCardView.swift
+│   └── CollectionFormView.swift
+├── Items/
+│   ├── ItemsScreen.swift
+│   └── ItemCardView.swift
+└── Shared/
+    ├── EmptyStateView.swift
+    └── LoadingView.swift
+```
+
+### Core Data Files
+
+Core Data related files should be organized under `Core/Data/`:
+
+```
+Core/
+└── Data/
+    ├── DataController.swift
+    ├── MultiCollection.xcdatamodeld/
+    ├── Repositories/
+    │   ├── CollectionsRepository.swift
+    │   ├── ItemsRepository.swift
+    │   └── RepositoryProtocols.swift
+    └── Validation/
+        ├── TemplateValidator.swift
+        └── TemplateFieldType.swift
+```
+
+### UI Core Files
+
+Core UI components that are shared across features:
+
+```
+Core/
+└── UI/
+    ├── Theme.swift
+    ├── SelectionStore.swift
+    └── HapticFeedback.swift
+```
+
+## Migration Guidelines
+
+When refactoring existing files:
+
+1. **Move files** to appropriate directories based on their type
+2. **Rename files** to follow naming conventions
+3. **Update imports** in files that reference moved files
+4. **Update Xcode project** file references if needed
+5. **Test thoroughly** after migration
+
+## Examples
+
+### Good File Organization
+
+```
+Pulse/
+├── Assets.xcassets/
+│   └── Colors/
+│       ├── Accent.colorset/
+│       └── Background.colorset/
+├── Core/
+│   ├── Data/
+│   │   ├── DataController.swift
+│   │   └── Repositories/
+│   │       └── HoldingsRepository.swift
+│   ├── DesignSystem/
+│   │   ├── Colors.swift
+│   │   ├── Typography.swift
+│   │   ├── Spacing.swift
+│   │   └── Components/
+│   │       ├── Buttons/
+│   │       └── Cards/
+│   └── UI/
+│       ├── SelectionStore.swift
+│       └── HapticFeedback.swift
+├── Views/
+│   ├── Portfolio/
+│   │   ├── PortfolioScreen.swift
+│   │   └── HoldingCardView.swift
+│   └── Calendar/
+│       └── CalendarScreen.swift
+└── Services/
+    └── DataService.swift
+```
+
+### Bad File Organization (Avoid)
+
+```
+Pulse/
+├── Pulse/
+│   ├── PortfolioView.swift            # Should be PortfolioScreen.swift
+│   ├── HoldingCard.swift              # Should be HoldingCardView.swift
+│   ├── DataController.swift           # Should be in Core/Data/
+│   └── Colors.swift                   # Should be in Core/DesignSystem/
+```
+
+## Enforcement
+
+- Always follow these conventions when creating new files
+- Refactor existing files to match these conventions when making significant changes
+- Use descriptive names that clearly indicate the file's purpose
+- Group related files in feature folders for better organization
+
+## Documentation Updates
+
+- **Always keep `Documentation/Features.md` updated**: After implementing any feature, story, or bug fix, immediately update `Documentation/Features.md` with:
+  - Feature implementation details
+  - Files created/modified
+  - Success criteria verification
+  - Bug fixes and technical details
+  - Next steps and future enhancements
+- Update Features.md as part of the completion workflow, not as an afterthought
+- Include bug fixes in the appropriate story section or create a "Bug Fixes" subsection

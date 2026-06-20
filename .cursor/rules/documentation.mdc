@@ -1,0 +1,96 @@
+---
+alwaysApply: true
+---
+
+# Documentation Maintenance
+
+## Features.md - Source of Truth
+
+**CRITICAL: `Documentation/Features.md` MUST be kept up-to-date at all times.**
+
+This file serves as the official source of truth for the app's current feature state and is shared with:
+- ASO (App Store Optimization) specialists
+- Marketing team
+- Product stakeholders
+- External partners
+
+### When to Update Features.md
+
+**ALWAYS update `Documentation/Features.md` when:**
+
+1. **New Features Added**
+   - Add new feature to appropriate section
+   - Include brief, non-technical description
+   - Update "Last Updated" date
+
+2. **Features Modified**
+   - Update existing feature descriptions if functionality changes significantly
+   - Clarify any new capabilities or limitations
+   - Update "Last Updated" date
+
+3. **Features Removed**
+   - Remove feature from documentation
+   - Note removal in changelog if applicable
+   - Update "Last Updated" date
+
+4. **UI/UX Changes**
+   - Update feature descriptions if user-facing changes affect how features are described
+   - Reflect new workflows or user experiences
+   - Update "Last Updated" date
+
+5. **Version Updates**
+   - Update version number when releasing new versions
+   - Update "Last Updated" date
+
+### Update Format Guidelines
+
+- **Keep it concise**: Features should be described in 1-2 sentences maximum
+- **Non-technical language**: Write for marketing/ASO audiences, not developers
+- **Scannable format**: Use bullet points and clear section headers
+- **Marketing-friendly**: Focus on user benefits, not implementation details
+- **Current state only**: Document what exists now, not future plans
+
+### Update Workflow
+
+1. **Before committing feature changes**: Review if Features.md needs updating
+2. **Update Features.md**: Make necessary changes to reflect new feature state
+3. **Commit together**: Include Features.md updates in the same commit as feature changes
+4. **Commit message**: Include note about Features.md update if significant
+
+### Example Update Scenarios
+
+**Scenario 1: Adding new feature**
+```
+- Implement new "Export" feature
+- Update Features.md: Add "Export" section under "Data Management"
+- Commit: "Add export feature + update Features.md"
+```
+
+**Scenario 2: Modifying existing feature**
+```
+- Enhance Portfolio screen with new metrics
+- Update Features.md: Update "Portfolio Metrics" description
+- Commit: "Enhance portfolio metrics + update Features.md"
+```
+
+**Scenario 3: UI change affecting description**
+```
+- Redesign Settings screen layout
+- Update Features.md: Update "Settings & Assumptions" section if needed
+- Commit: "Redesign settings UI + update Features.md"
+```
+
+## Enforcement
+
+- **Code reviews**: Verify Features.md is updated when reviewing feature PRs
+- **Pre-commit checks**: Consider adding automated checks (future enhancement)
+- **Team awareness**: All team members must be aware of this requirement
+
+## File Location
+
+- **Features.md**: `Documentation/Features.md`
+- **This rule**: `.cursor/rules/documentation.mdc`
+
+---
+
+**Remember**: Features.md is a living document. It should always reflect the current state of the app, not what's planned or in development.

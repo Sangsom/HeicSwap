@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design Directions — HeicSwap</title>
+<style>
+  :root{
+    --ink:#1b2330; --muted:#5b6676; --faint:#8a94a3; --line:#e7eaef;
+    --bg:#ffffff; --surface:#f7f8fa; --surface-2:#eef1f5;
+    --accent:#0f8f87; --accent-2:#e2603b;
+    --ok:#1f9d62; --warn:#c98a17; --bad:#c8432f;
+    --radius:14px; --maxw:980px;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0; background:var(--surface); color:var(--ink);
+    font:16px/1.62 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;}
+  main{max-width:var(--maxw); margin:0 auto; padding:0 24px 72px}
+  .sheet{background:var(--bg); margin:28px auto; padding:48px 56px; border:1px solid var(--line);
+    border-radius:var(--radius); box-shadow:0 1px 2px rgba(20,30,45,.04),0 12px 28px rgba(20,30,45,.05)}
+  .doc-head{border-bottom:2px solid var(--ink); padding-bottom:20px; margin-bottom:32px}
+  .eyebrow{font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 8px}
+  h1{font-size:34px; line-height:1.12; margin:0 0 10px; letter-spacing:-.02em; font-weight:800}
+  .doc-meta{color:var(--muted); font-size:14px; margin:0}
+  h2{font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); font-weight:700;
+    margin:42px 0 16px; padding-bottom:8px; border-bottom:1px solid var(--line)}
+  h3{font-size:19px; margin:24px 0 8px; letter-spacing:-.01em}
+  p{margin:0 0 14px} a{color:var(--accent)} ul{margin:0 0 16px; padding-left:20px} li{margin:4px 0}
+  strong{font-weight:680} code{font:13px/1.5 ui-monospace,Menlo,monospace; background:var(--surface-2); padding:1px 6px; border-radius:6px}
+  .pill{display:inline-block; font-size:12px; font-weight:700; padding:4px 11px; border-radius:999px}
+  .pill.rec{background:rgba(31,157,98,.12); color:var(--ok)}
+  .callout{border-left:3px solid var(--accent); background:var(--surface); padding:14px 18px; border-radius:0 10px 10px 0; margin:18px 0}
+  .callout.rec{border-color:var(--ok)}
+  .callout .lbl{font-size:11px; letter-spacing:.12em; text-transform:uppercase; font-weight:700; color:var(--muted); display:block; margin-bottom:4px}
+
+  /* direction cards */
+  .directions{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:20px; margin:8px 0 8px}
+  .dir{border:1px solid var(--line); border-radius:16px; overflow:hidden; background:var(--bg); position:relative}
+  .dir.is-rec{border-color:var(--ok); box-shadow:0 0 0 2px rgba(31,157,98,.18)}
+  .dir .tag{position:absolute; top:10px; right:10px; z-index:2}
+  .palette{display:flex; height:54px} .palette span{flex:1}
+  .dir .head{padding:14px 16px 6px} .dir .name{font-weight:800; font-size:17px} .dir .num{color:var(--faint); font-weight:800; margin-right:6px}
+  .dir .mood{color:var(--muted); font-size:13px; margin-top:2px}
+  .swatches{display:flex; gap:8px; padding:8px 16px 12px; flex-wrap:wrap}
+  .chip{display:flex; align-items:center; gap:5px; font-size:11px; color:var(--muted)} .chip i{width:14px; height:14px; border-radius:4px; border:1px solid rgba(0,0,0,.10); display:inline-block}
+  .dir .body{padding:0 16px 16px; font-size:13px; color:var(--muted)}
+  .dir .body b{color:var(--ink)}
+
+  /* sample phones */
+  .samples{display:flex; flex-wrap:wrap; gap:30px 26px; justify-content:center; margin:14px 0 6px}
+  .sample{width:234px}
+  .sample figcaption{font-size:12.5px; color:var(--muted); text-align:center; margin-top:10px}
+  .sample figcaption b{color:var(--ink)}
+  .frame{width:234px; height:486px; border-radius:36px; background:#11161d; padding:10px; margin:0 auto;
+    box-shadow:0 14px 34px rgba(20,30,45,.22)}
+  .glass{width:100%; height:100%; border-radius:27px; overflow:hidden; display:flex; flex-direction:column; position:relative}
+  .scr{flex:1; display:flex; flex-direction:column; padding:20px 15px 16px; gap:13px}
+  .scr .top{display:flex; align-items:center; justify-content:space-between}
+  .scr .ttl{font-size:22px; font-weight:800; letter-spacing:-.02em}
+  .scr .badge{font-size:10px; font-weight:700; padding:4px 9px; border-radius:999px; display:inline-flex; gap:4px; align-items:center; white-space:nowrap}
+  .scr .grid{display:grid; grid-template-columns:repeat(4,1fr); gap:6px}
+  .scr .th{aspect-ratio:1; border-radius:9px}
+  .scr .more{aspect-ratio:1; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700}
+  .scr .swap{display:flex; align-items:center; justify-content:center; gap:14px; padding:14px 12px; border-radius:14px; font-weight:800}
+  .scr .swap .fmt{font-size:15px} .scr .swap .ar{font-size:19px; font-weight:800}
+  .scr .note{font-size:11px; display:flex; gap:5px; align-items:center; justify-content:center}
+  .scr .readout{font-size:11.5px; text-align:center; letter-spacing:-.01em}
+  .scr .spacer{flex:1; min-height:4px}
+  .scr .cta{padding:14px; border-radius:14px; text-align:center; font-weight:800; font-size:15px}
+  .scr .free{text-align:center; font-size:11px}
+
+  /* ---- D1 Quiet Utility (light) ---- */
+  .p-quiet .glass{background:#FBFBFD}
+  .p-quiet .ttl{color:#1C1E24}
+  .p-quiet .badge{background:#EEF0F5; color:#6b7686}
+  .p-quiet .th{box-shadow:inset 0 0 0 1px rgba(0,0,0,.04)}
+  .p-quiet .more{background:#EEF0F5; color:#7c8696}
+  .p-quiet .swap{background:#F1F2F6; color:#1C1E24}
+  .p-quiet .swap .ar{color:#4F6BED}
+  .p-quiet .cta{background:#4F6BED; color:#fff}
+  .p-quiet .free{color:#9aa3b1}
+
+  /* ---- D2 Privacy Vault (dark) ---- */
+  .p-vault .glass{background:#0E1512}
+  .p-vault .ttl{color:#E8F0EC}
+  .p-vault .badge{background:rgba(0,224,164,.13); color:#33E7B6; box-shadow:0 0 0 1px rgba(0,224,164,.30), 0 0 14px rgba(0,224,164,.22)}
+  .p-vault .more{background:#16201C; color:#8fa79c}
+  .p-vault .th{box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)}
+  .p-vault .swap{background:#16201C; color:#E8F0EC; border:1px solid rgba(255,255,255,.06)}
+  .p-vault .swap .ar{color:#00E0A4}
+  .p-vault .note{color:#5fae93}
+  .p-vault .cta{background:#00E0A4; color:#06231A; box-shadow:0 8px 22px rgba(0,224,164,.34)}
+  .p-vault .free{color:#6f8a7e}
+
+  /* ---- D3 Bold Swap (light, energetic) ---- */
+  .p-bold .glass{background:#FFFFFF}
+  .p-bold .ttl{color:#0B0B0F; font-size:27px; font-weight:900; letter-spacing:-.03em}
+  .p-bold .badge{background:#0B0B0F; color:#fff}
+  .p-bold .more{background:#F3F4F6; color:#0B0B0F}
+  .p-bold .swap{background:#0B0B0F; color:#fff; padding:20px 12px; border-radius:18px}
+  .p-bold .swap .fmt{font-size:19px; font-weight:900}
+  .p-bold .swap .ar{color:#FF5A1F; font-size:30px; font-weight:900}
+  .p-bold .cta{background:#FF5A1F; color:#fff; font-size:16px; font-weight:900; letter-spacing:-.01em}
+  .p-bold .free{color:#9a9aa0; font-weight:600}
+
+  /* ---- D4 Warm Darkroom (dark, serif, photographic) ---- */
+  .p-warm .glass{background:#1A1413}
+  .p-warm .ttl{color:#F4EBE3; font-family:Georgia,"Times New Roman",serif; font-weight:700; font-style:italic}
+  .p-warm .badge{background:rgba(255,123,84,.16); color:#FF9F7E}
+  .p-warm .grid{position:relative}
+  .p-warm .grid::after{content:""; position:absolute; inset:0; border-radius:9px; pointer-events:none;
+    background:radial-gradient(120% 90% at 30% 0%, rgba(255,123,84,.22), rgba(232,75,60,.06) 60%, transparent)}
+  .p-warm .more{background:#251B18; color:#c79a85}
+  .p-warm .swap{background:#251B18; color:#F4EBE3}
+  .p-warm .swap .ar{color:#FF7B54}
+  .p-warm .cta{background:linear-gradient(135deg,#FF7B54,#E84B3C); color:#23100b; font-weight:800}
+  .p-warm .free{color:#9c7d70}
+
+  /* ---- D5 Playful Pop (light, candy, rounded) ---- */
+  .p-play .glass{background:#FFFDF8}
+  .p-play .ttl, .p-play .cta, .p-play .swap, .p-play .badge, .p-play .more, .p-play .free{font-family:ui-rounded,"SF Pro Rounded",system-ui,sans-serif}
+  .p-play .ttl{color:#231C3A; font-weight:800}
+  .p-play .badge{background:#EFE7FF; color:#7C4DFF}
+  .p-play .more{background:#FFEAF2; color:#FF4D8D}
+  .p-play .swap{background:#fff; border:2px solid #F0E7FF; color:#231C3A; border-radius:20px; gap:10px}
+  .p-play .swap .fmt{background:#7C4DFF; color:#fff; padding:5px 12px; border-radius:999px; font-size:13px}
+  .p-play .swap .fmt.b{background:#FF4D8D}
+  .p-play .swap .ar{color:#231C3A}
+  .p-play .cta{background:linear-gradient(135deg,#7C4DFF,#FF4D8D); color:#fff; border-radius:20px; font-weight:800}
+  .p-play .free{color:#9890ad}
+
+  /* ---- D6 Engineer (dark, mono, instrument) ---- */
+  .p-eng .glass{background:#0D0F11}
+  .p-eng .ttl,.p-eng .badge,.p-eng .more,.p-eng .swap,.p-eng .readout,.p-eng .cta,.p-eng .free{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .p-eng .ttl{color:#E7EAEC; font-size:17px; font-weight:700; letter-spacing:.02em}
+  .p-eng .badge{background:#161A1D; color:#4C8DFF; border-radius:5px; box-shadow:inset 0 0 0 1px rgba(76,141,255,.25)}
+  .p-eng .th{border-radius:4px}
+  .p-eng .more{background:#161A1D; color:#7e8b98; border-radius:4px}
+  .p-eng .swap{background:#11151a; color:#E7EAEC; border-radius:6px; border:1px solid #20262d; justify-content:space-between; padding:13px 15px}
+  .p-eng .swap .ar{color:#4C8DFF}
+  .p-eng .readout{color:#5fb9a0; letter-spacing:0}
+  .p-eng .cta{background:#4C8DFF; color:#04122e; border-radius:6px; letter-spacing:.02em}
+  .p-eng .free{color:#637180}
+
+  /* photo thumbnails (shared, evoke real photos) */
+  .ph1{background:linear-gradient(140deg,#8fc0ff,#d7ecff)}
+  .ph2{background:linear-gradient(140deg,#ffb27f,#ff7f9e)}
+  .ph3{background:linear-gradient(140deg,#e8e4db,#c9c3b5)}
+  .ph4{background:linear-gradient(140deg,#7fd6a8,#bdeccd)}
+
+  hr{border:none; border-top:1px solid var(--line); margin:32px 0}
+  footer{max-width:var(--maxw); margin:0 auto; padding:0 24px 40px; color:var(--faint); font-size:12.5px}
+  @media print{
+    body{background:#fff} .sheet{box-shadow:none; border:none; margin:0; padding:0}
+    h2{break-after:avoid} .dir,.sample{break-inside:avoid} a{color:var(--ink)}
+  }
+  @media (max-width:620px){.sheet{padding:28px 18px} h1{font-size:26px}}
+</style>
+</head>
+<body>
+<main>
+  <article class="sheet">
+    <header class="doc-head">
+      <p class="eyebrow">Design Directions · UX/UI Designer</p>
+      <h1>Six ways HeicSwap could look</h1>
+      <p class="doc-meta">HeicSwap · 2026-06-19 · ios-product-team · pick 1–2 before the full spec</p>
+    </header>
+
+    <p><strong>HeicSwap</strong> is a fast, <em>on-device</em>, ad-free image converter. The same Convert screen is
+    rendered six ways below — six different <em>personalities</em>, not one theme in six tints. Each varies the palette
+    (light + dark), the type pairing, the shape language, and one <em>signature move</em>. They split into two camps:
+    those that win on <strong>trust</strong> (calm, private, premium) and those that win on <strong>screenshot CTR</strong>
+    (bold, warm, playful).</p>
+
+    <div class="callout"><span class="lbl">Tied to the competitor teardown</span>
+      Today's ranking converters look the same: a generic blue-and-white utility, often ad-cluttered, several built on
+      cloud upload. Our wedge is <strong>privacy + honesty + speed</strong>. The directions that lean into that
+      (<b>Privacy Vault</b>, <b>Quiet Utility</b>) make screenshot #1 — “nothing leaves your iPhone” — land hardest;
+      the louder ones (<b>Bold Swap</b>) win the tap in a grid of pastel sameness.</p>
+    </div>
+
+    <h2>The six directions</h2>
+    <div class="directions">
+
+      <!-- 1 -->
+      <div class="dir">
+        <div class="palette"><span style="background:#FBFBFD"></span><span style="background:#F1F2F6"></span><span style="background:#4F6BED"></span><span style="background:#1C1E24"></span></div>
+        <div class="head"><div class="name"><span class="num">01</span>Quiet Utility</div><div class="mood">Calm, neutral, gets out of the way.</div></div>
+        <div class="swatches">
+          <span class="chip"><i style="background:#FBFBFD"></i>#FBFBFD</span>
+          <span class="chip"><i style="background:#F1F2F6"></i>#F1F2F6</span>
+          <span class="chip"><i style="background:#4F6BED"></i>#4F6BED</span>
+          <span class="chip"><i style="background:#121317"></i>dark #121317</span>
+        </div>
+        <div class="body"><b>Wins:</b> the mainstream “just do it” user; screenshots read Apple-grade and trustworthy.
+          <br><b>Type:</b> system SF Pro, restrained weights. <b>Shape:</b> soft 14px radius, airy.
+          <br><b>Signature:</b> the Convert button is the <em>only</em> colored thing on screen.</div>
+      </div>
+
+      <!-- 2 RECOMMENDED -->
+      <div class="dir is-rec">
+        <span class="tag pill rec">Recommended</span>
+        <div class="palette"><span style="background:#0E1512"></span><span style="background:#16201C"></span><span style="background:#00E0A4"></span><span style="background:#E8F0EC"></span></div>
+        <div class="head"><div class="name"><span class="num">02</span>Privacy Vault</div><div class="mood">Premium, dark, “your photos are safe here.”</div></div>
+        <div class="swatches">
+          <span class="chip"><i style="background:#0E1512"></i>#0E1512</span>
+          <span class="chip"><i style="background:#16201C"></i>#16201C</span>
+          <span class="chip"><i style="background:#00E0A4"></i>#00E0A4</span>
+          <span class="chip"><i style="background:#F3FAF6"></i>light #F3FAF6</span>
+        </div>
+        <div class="body"><b>Wins:</b> the privacy-motivated user; ASO leads “100% on-device.” <em>Directly counters the cloud incumbents.</em>
+          <br><b>Type:</b> SF Pro display + mono micro-labels. <b>Shape:</b> dark surfaces, 1px hairlines.
+          <br><b>Signature:</b> a glowing mint “on-device” shield + a lock line above Convert.</div>
+      </div>
+
+      <!-- 3 -->
+      <div class="dir">
+        <div class="palette"><span style="background:#0B0B0F"></span><span style="background:#FF5A1F"></span><span style="background:#F3F4F6"></span><span style="background:#FFFFFF"></span></div>
+        <div class="head"><div class="name"><span class="num">03</span>Bold Swap</div><div class="mood">Loud, confident, impossible to scroll past.</div></div>
+        <div class="swatches">
+          <span class="chip"><i style="background:#FFFFFF"></i>#FFFFFF</span>
+          <span class="chip"><i style="background:#0B0B0F"></i>#0B0B0F</span>
+          <span class="chip"><i style="background:#FF5A1F"></i>#FF5A1F</span>
+          <span class="chip"><i style="background:#FF6A2C"></i>dark #0B0B0F</span>
+        </div>
+        <div class="body"><b>Wins:</b> the screenshot-CTR war — pops in a grid of pastel converter icons.
+          <br><b>Type:</b> ultra-heavy system black, tight tracking. <b>Shape:</b> chunky 18px, high contrast.
+          <br><b>Signature:</b> a giant <code>HEIC ⇄ JPG</code> swap control as the hero.</div>
+      </div>
+
+      <!-- 4 -->
+      <div class="dir">
+        <div class="palette"><span style="background:#1A1413"></span><span style="background:#251B18"></span><span style="background:#FF7B54"></span><span style="background:#E84B3C"></span></div>
+        <div class="head"><div class="name"><span class="num">04</span>Warm Darkroom</div><div class="mood">Human, photographic, safelight glow.</div></div>
+        <div class="swatches">
+          <span class="chip"><i style="background:#1A1413"></i>#1A1413</span>
+          <span class="chip"><i style="background:#FF7B54"></i>#FF7B54</span>
+          <span class="chip"><i style="background:#E84B3C"></i>#E84B3C</span>
+          <span class="chip"><i style="background:#FBF3EC"></i>light #FBF3EC</span>
+        </div>
+        <div class="body"><b>Wins:</b> photo lovers; feels crafted, not sterile. <em>The anti-utility look.</em>
+          <br><b>Type:</b> italic serif titles + system body. <b>Shape:</b> warm, filmic, rounded.
+          <br><b>Signature:</b> thumbnails bathed in a darkroom amber wash.</div>
+      </div>
+
+      <!-- 5 -->
+      <div class="dir">
+        <div class="palette"><span style="background:#FFFDF8"></span><span style="background:#7C4DFF"></span><span style="background:#FF4D8D"></span><span style="background:#20C997"></span></div>
+        <div class="head"><div class="name"><span class="num">05</span>Playful Pop</div><div class="mood">Friendly, candy-bright, approachable.</div></div>
+        <div class="swatches">
+          <span class="chip"><i style="background:#FFFDF8"></i>#FFFDF8</span>
+          <span class="chip"><i style="background:#7C4DFF"></i>#7C4DFF</span>
+          <span class="chip"><i style="background:#FF4D8D"></i>#FF4D8D</span>
+          <span class="chip"><i style="background:#161320"></i>dark #161320</span>
+        </div>
+        <div class="body"><b>Wins:</b> broad &amp; younger users; shareable, low-intimidation.
+          <br><b>Type:</b> rounded (SF Pro Rounded), heavy. <b>Shape:</b> 20px pills, chunky.
+          <br><b>Signature:</b> format chips as candy pills; gradient Convert button.</div>
+      </div>
+
+      <!-- 6 -->
+      <div class="dir">
+        <div class="palette"><span style="background:#0D0F11"></span><span style="background:#161A1D"></span><span style="background:#4C8DFF"></span><span style="background:#5fb9a0"></span></div>
+        <div class="head"><div class="name"><span class="num">06</span>Engineer</div><div class="mood">Precise, technical, a real tool.</div></div>
+        <div class="swatches">
+          <span class="chip"><i style="background:#0D0F11"></i>#0D0F11</span>
+          <span class="chip"><i style="background:#161A1D"></i>#161A1D</span>
+          <span class="chip"><i style="background:#4C8DFF"></i>#4C8DFF</span>
+          <span class="chip"><i style="background:#FBFBF9"></i>light #FBFBF9</span>
+        </div>
+        <div class="body"><b>Wins:</b> the prosumer/RAW user; signals capability → feeds recurring use.
+          <br><b>Type:</b> monospace-led. <b>Shape:</b> square 6px corners, hairlines.
+          <br><b>Signature:</b> a live before→after spec readout <code>4.2MB → 1.1MB −74%</code>.</div>
+      </div>
+
+    </div>
+
+    <h2>See them live — the Convert screen, six ways</h2>
+    <div class="samples">
+
+      <!-- 01 Quiet -->
+      <figure class="sample">
+        <div class="frame p-quiet"><div class="glass"><div class="scr">
+          <div class="top"><span class="ttl">Convert</span><span class="badge">⛊ On-device</span></div>
+          <div class="grid">
+            <span class="th ph1"></span><span class="th ph2"></span><span class="th ph3"></span><span class="more">+9</span>
+          </div>
+          <div class="swap"><span class="fmt">HEIC</span><span class="ar">→</span><span class="fmt">JPG</span></div>
+          <div class="spacer"></div>
+          <div class="cta">Convert 12 photos</div>
+          <div class="free">10 free conversions left today</div>
+        </div></div></div>
+        <figcaption><b>01 · Quiet Utility</b> — light. Only the button has color.</figcaption>
+      </figure>
+
+      <!-- 02 Vault -->
+      <figure class="sample">
+        <div class="frame p-vault"><div class="glass"><div class="scr">
+          <div class="top"><span class="ttl">Convert</span><span class="badge">🛡 On-device</span></div>
+          <div class="grid">
+            <span class="th ph1"></span><span class="th ph2"></span><span class="th ph3"></span><span class="more">+9</span>
+          </div>
+          <div class="swap"><span class="fmt">HEIC</span><span class="ar">⇄</span><span class="fmt">JPG</span></div>
+          <div class="spacer"></div>
+          <div class="note">🔒 Nothing ever leaves your iPhone</div>
+          <div class="cta">Convert 12 photos</div>
+          <div class="free">10 free left today</div>
+        </div></div></div>
+        <figcaption><b>02 · Privacy Vault</b> — dark. Glowing trust badge. <span style="color:var(--ok)">Recommended.</span></figcaption>
+      </figure>
+
+      <!-- 03 Bold -->
+      <figure class="sample">
+        <div class="frame p-bold"><div class="glass"><div class="scr">
+          <div class="top"><span class="ttl">Convert</span><span class="badge">ON-DEVICE</span></div>
+          <div class="grid">
+            <span class="th ph2"></span><span class="th ph1"></span><span class="th ph4"></span><span class="more">+9</span>
+          </div>
+          <div class="swap"><span class="fmt">HEIC</span><span class="ar">⇄</span><span class="fmt">JPG</span></div>
+          <div class="spacer"></div>
+          <div class="cta">CONVERT 12 PHOTOS</div>
+          <div class="free">10 free left today</div>
+        </div></div></div>
+        <figcaption><b>03 · Bold Swap</b> — the swap control is the hero.</figcaption>
+      </figure>
+
+      <!-- 04 Warm -->
+      <figure class="sample">
+        <div class="frame p-warm"><div class="glass"><div class="scr">
+          <div class="top"><span class="ttl">Convert</span><span class="badge">⛊ On-device</span></div>
+          <div class="grid">
+            <span class="th ph2"></span><span class="th ph1"></span><span class="th ph3"></span><span class="more">+9</span>
+          </div>
+          <div class="swap"><span class="fmt">HEIC</span><span class="ar">→</span><span class="fmt">JPG</span></div>
+          <div class="spacer"></div>
+          <div class="cta">Convert 12 photos</div>
+          <div class="free">10 free conversions left today</div>
+        </div></div></div>
+        <figcaption><b>04 · Warm Darkroom</b> — dark, serif, amber wash.</figcaption>
+      </figure>
+
+      <!-- 05 Playful -->
+      <figure class="sample">
+        <div class="frame p-play"><div class="glass"><div class="scr">
+          <div class="top"><span class="ttl">Convert</span><span class="badge">⛊ Private</span></div>
+          <div class="grid">
+            <span class="th ph4"></span><span class="th ph2"></span><span class="th ph1"></span><span class="more">+9</span>
+          </div>
+          <div class="swap"><span class="fmt">HEIC</span><span class="ar">→</span><span class="fmt b">JPG</span></div>
+          <div class="spacer"></div>
+          <div class="cta">✨ Convert 12 photos</div>
+          <div class="free">10 free left today</div>
+        </div></div></div>
+        <figcaption><b>05 · Playful Pop</b> — candy format pills.</figcaption>
+      </figure>
+
+      <!-- 06 Engineer -->
+      <figure class="sample">
+        <div class="frame p-eng"><div class="glass"><div class="scr">
+          <div class="top"><span class="ttl">CONVERT</span><span class="badge">[on-device]</span></div>
+          <div class="grid">
+            <span class="th ph3"></span><span class="th ph1"></span><span class="th ph4"></span><span class="more">+9</span>
+          </div>
+          <div class="swap"><span class="fmt">HEIC</span><span class="ar">→</span><span class="fmt">JPG</span></div>
+          <div class="readout">48.2 MB&nbsp; →&nbsp; ~12.1 MB&nbsp; <span style="color:#4C8DFF">−75%</span></div>
+          <div class="spacer"></div>
+          <div class="cta">CONVERT · 12 FILES</div>
+          <div class="free">free: 10/10 today</div>
+        </div></div></div>
+        <figcaption><b>06 · Engineer</b> — mono, square, spec readout.</figcaption>
+      </figure>
+
+    </div>
+
+    <h2>Recommendation</h2>
+    <div class="callout rec"><span class="lbl">Recommended: 02 — Privacy Vault</span>
+      Our single most ownable advantage over the two ranking incumbents is <strong>on-device privacy</strong> — both
+      leaders upload to a server or run on ads. A premium-dark, trust-signaling identity makes that wedge the
+      <em>visual</em> story, so App Store screenshot #1 (“nothing leaves your iPhone”) carries the listing. The mint
+      accent doubles as the universal “go / done” color for a fast utility.
+      <br><br><strong>Strong pairing:</strong> blend <b>02 Vault</b>’s dark trust hero with <b>01 Quiet Utility</b>’s
+      restraint for the light-mode variant — premium where it counts, calm everywhere else. If maximizing
+      install-screenshot CTR is the priority instead, <b>03 Bold Swap</b> is the alternative.</div>
+
+    <p style="font-size:17px; margin-top:18px"><strong>Pick 1–2 directions</strong> and I’ll build the full design
+    spec — flows, screen inventory, interaction + haptics, the complete token system, and accessibility — on the
+    winner. (My pick: <strong>02 Privacy Vault</strong>, with 01’s restraint for light mode.)</p>
+
+  </article>
+</main>
+<footer>Generated by ios-product-team · Design Directions · self-contained HTML. Phone mockups are CSS approximations of the Convert screen; final pixel spec follows the chosen direction.</footer>
+</body>
+</html>

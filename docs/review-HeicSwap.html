@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Devil's Advocate Review — HeicSwap</title>
+<style>
+  :root{
+    --ink:#1b2330; --muted:#5b6676; --faint:#8a94a3; --line:#e7eaef;
+    --bg:#ffffff; --surface:#f7f8fa; --surface-2:#eef1f5;
+    --accent:#0f8f87; --accent-2:#e2603b;
+    --ok:#1f9d62; --warn:#c98a17; --bad:#c8432f;
+    --radius:14px; --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0; background:var(--surface); color:var(--ink);
+    font:16px/1.62 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;}
+  main{max-width:var(--maxw); margin:0 auto; padding:0 24px 72px}
+  .sheet{background:var(--bg); margin:28px auto; padding:48px 56px; border:1px solid var(--line);
+    border-radius:var(--radius); box-shadow:0 1px 2px rgba(20,30,45,.04),0 12px 28px rgba(20,30,45,.05)}
+  .doc-head{border-bottom:2px solid var(--ink); padding-bottom:20px; margin-bottom:32px}
+  .eyebrow{font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent-2); font-weight:700; margin:0 0 8px}
+  h1{font-size:34px; line-height:1.12; margin:0 0 10px; letter-spacing:-.02em; font-weight:800}
+  .doc-meta{color:var(--muted); font-size:14px; margin:0}
+  h2{font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); font-weight:700;
+    margin:42px 0 16px; padding-bottom:8px; border-bottom:1px solid var(--line)}
+  h3{font-size:18px; margin:24px 0 6px; letter-spacing:-.01em}
+  p{margin:0 0 14px} a{color:var(--accent)} ul,ol{margin:0 0 16px; padding-left:22px} li{margin:5px 0}
+  strong{font-weight:680} code{font:13px/1.5 ui-monospace,Menlo,monospace; background:var(--surface-2); padding:1px 6px; border-radius:6px}
+  .pill{display:inline-block; font-size:12px; font-weight:700; padding:4px 11px; border-radius:999px}
+  .pill.ok{background:rgba(31,157,98,.12); color:var(--ok)}
+  .pill.warn{background:rgba(201,138,23,.16); color:var(--warn)}
+  .pill.bad{background:rgba(200,67,47,.13); color:var(--bad)}
+  .pill.neutral{background:var(--surface-2); color:var(--muted)}
+  .score-hero{display:flex; align-items:center; gap:22px; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:20px 24px; margin:0 0 8px}
+  .score-hero .big{font-size:52px; font-weight:800; color:var(--accent-2); letter-spacing:-.02em; line-height:1}
+  .score-hero .big small{font-size:20px; color:var(--faint)}
+  .issue{border:1px solid var(--line); border-left:4px solid var(--bad); border-radius:0 12px 12px 0; padding:14px 18px; margin:0 0 16px; background:var(--bg)}
+  .issue h3{margin:0 0 8px; color:var(--bad)}
+  .issue .row{margin:6px 0} .issue .k{font-size:11px; letter-spacing:.10em; text-transform:uppercase; font-weight:700; color:var(--muted); display:inline-block; min-width:74px}
+  .issue.major{border-left-color:var(--warn)} .issue.major h3{color:var(--warn)}
+  .callout{border-left:3px solid var(--accent); background:var(--surface); padding:14px 18px; border-radius:0 10px 10px 0; margin:18px 0}
+  .callout.good{border-color:var(--ok)}
+  .callout .lbl{font-size:11px; letter-spacing:.12em; text-transform:uppercase; font-weight:700; color:var(--muted); display:block; margin-bottom:4px}
+  table{width:100%; border-collapse:collapse; margin:0 0 20px; font-size:14.5px}
+  th{text-align:left; background:var(--ink); color:#fff; font-weight:600; padding:9px 12px; font-size:12.5px}
+  th:first-child{border-radius:8px 0 0 0} th:last-child{border-radius:0 8px 0 0}
+  td{padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .tbl-wrap{overflow-x:auto; margin:0 0 20px} .tbl-wrap table{margin:0}
+  ol.steps{counter-reset:s; list-style:none; padding-left:0}
+  ol.steps li{counter-increment:s; padding-left:38px; position:relative; margin:10px 0}
+  ol.steps li::before{content:counter(s); position:absolute; left:0; top:0; width:26px; height:26px; background:var(--accent); color:#fff; border-radius:50%; font-weight:700; font-size:13px; display:flex; align-items:center; justify-content:center}
+  hr{border:none; border-top:1px solid var(--line); margin:32px 0}
+  footer{max-width:var(--maxw); margin:0 auto; padding:0 24px 40px; color:var(--faint); font-size:12.5px}
+  @media print{body{background:#fff} .sheet{box-shadow:none;border:none;margin:0;padding:0} h2{break-after:avoid} .issue,table,.callout{break-inside:avoid} a{color:var(--ink)}}
+  @media (max-width:620px){.sheet{padding:28px 18px} h1{font-size:26px} .score-hero{flex-direction:column; align-items:flex-start}}
+</style>
+</head>
+<body>
+<main>
+  <article class="sheet">
+    <header class="doc-head">
+      <p class="eyebrow">Adversarial Review · Devil's Advocate</p>
+      <h1>HeicSwap — what could sink this</h1>
+      <p class="doc-meta">HeicSwap · 2026-06-19 · ios-product-team · Reviewed: Discovery + PRD draft v0.9 + Design Spec (Warm Darkroom)</p>
+    </header>
+
+    <div class="score-hero">
+      <div class="big">7<small>/10</small></div>
+      <div>A strong, data-grounded concept with smart pricing and a genuinely differentiated look —
+      but <strong>not yet build-ready</strong>. Two issues are business-critical: the free tier is shaped so the
+      <em>mainstream</em> user never pays, and a privacy-branded app is quietly shipping third-party analytics with a
+      “we collect nothing” claim. Fix the free-gate and the privacy-stack contradiction and this is an 8.5.</div>
+    </div>
+    <p class="small muted">Per the Execution Pivot, I am <strong>not</strong> flagging “a competitor already ships this” or
+    “it’s not defensible” — those are normal. Every issue below is about <strong>winnability honesty, scope,
+    monetization, feasibility, or accuracy</strong>.</p>
+
+    <h2>Critical Issues — must fix before building</h2>
+
+    <div class="issue">
+      <h3>1. The free tier is calibrated so your primary persona never pays</h3>
+      <div class="row"><span class="k">What</span> Free = ~10 conversions/<em>day</em>. But the “Blocked Sender” job is “convert 3–12 photos, once.” That fits under the daily cap — and the cap <em>resets daily</em>, so even a repeat user (8 today, 5 tomorrow) is perpetually free. The only people who hit the wall are big-batch power users converting &gt;10 at once — i.e. exactly the single-use cohort that then churns. You monetize a narrow, churn-prone slice.</div>
+      <div class="row"><span class="k">Why</span> This quietly undercuts the entire revenue model. With a 10/day cap, free→paid could land well below the 3.5% target, and the payers you <em>do</em> get are the ones the Strategist already worried would churn.</div>
+      <div class="row"><span class="k">Fix</span> Gate on the <strong>value moment, not a daily count</strong>: free = unlimited basic HEIC/PNG→JPG at small batch sizes; Pro-gate what people will pay for in the moment — <strong>large batch (&gt;N at once), image→PDF, resize-to-target, RAW/WebP, strip-metadata</strong>. This is PRD Open-Question Q1 — but it’s not an open question, it’s the linchpin. Resolve it before anything else.</div>
+    </div>
+
+    <div class="issue">
+      <h3>2. A privacy-brand app running Firebase + a “we collect nothing” claim</h3>
+      <div class="row"><span class="k">What</span> The whole wedge is honesty-about-privacy, and Settings says “nothing is collected.” But the PRD specs <strong>Firebase Analytics + Crashlytics</strong>, which collect device/usage identifiers. The privacy <em>nutrition label</em> would then be inaccurate, and the Settings copy is simply false.</div>
+      <div class="row"><span class="k">Why</span> This is the most on-brand way to get destroyed — a 1-star review or a tech blogger noticing “the ‘private’ converter phones home to Google” erases the exact trust you’re selling. It’s also an App Store privacy-label accuracy risk and an EU GDPR consent burden (you’re an EU dev).</div>
+      <div class="row"><span class="k">Fix</span> Pick one and commit: (a) drop third-party analytics, use Apple-only/on-device signals (or none) and keep “we collect nothing” literally true — the cleanest brand play; or (b) keep lightweight analytics but change the copy to the precise truth (“Your photos and files are never collected or uploaded. We use anonymous usage counts to improve the app.”) and ship a proper consent flow. Do <strong>not</strong> ship Firebase + “collect nothing.”</div>
+    </div>
+
+    <div class="issue">
+      <h3>3. v1 front-loads the riskiest features for the smallest audience</h3>
+      <div class="row"><span class="k">What</span> The “must-have” MVP includes <strong>RAW</strong>, <strong>WebP encode</strong>, and a <strong>Share Extension</strong> — the three biggest complexity bombs, all serving the <em>secondary</em> prosumer persona, not the mainstream Blocked Sender.</div>
+      <div class="row"><span class="k">Why</span> Each is a schedule killer for a solo dev in 4–6 weeks: RAW (<code>CIRAWFilter</code>) is memory-heavy and slow at the promised 100+ batch (jetsam risk); WebP <em>encode</em> likely needs a libwebp C dependency (build/size/maintenance cost; PRD Q2); and <strong>app extensions have hard ~tens-of-MB memory limits</strong> — a heavy batch/RAW conversion inside the share extension will crash on real devices. These are the 20% that eats 80% of the time.</div>
+      <div class="row"><span class="k">Fix</span> Ship the mainstream core in v1: HEIC/PNG/JPG ⇄ + image→PDF + resize-to-target + strip-metadata + one-tap batch. Move <strong>RAW, WebP-encode, and the Share Extension to v1.1</strong>. The head keywords and the primary persona are fully served without them, and the schedule de-risks dramatically.</div>
+    </div>
+
+    <div class="issue">
+      <h3>4. “Nothing ever leaves your iPhone / works on a plane” breaks on iCloud-optimized photos</h3>
+      <div class="row"><span class="k">What</span> With “Optimize iPhone Storage” on (the default for many), the full-res original lives in iCloud, not on device. Converting it requires <strong>downloading from iCloud first</strong> — which needs network. The offline promise fails, and there’s a silent fetch the UX doesn’t account for.</div>
+      <div class="row"><span class="k">Why</span> It’s a real UX dead-end (user on a plane taps Convert → nothing happens / spinner) and a marketing-accuracy problem on a claim that <em>is</em> the brand.</div>
+      <div class="row"><span class="k">Fix</span> Make the copy precisely true: lead with “<strong>Never uploaded · no server conversion</strong>” (always true) rather than “never leaves your phone / works offline” (conditionally false). Handle the iCloud case with an explicit “Downloading from iCloud…” state. Downloading ≠ uploading, so privacy is intact — but say it accurately.</div>
+    </div>
+
+    <div class="issue">
+      <h3>5. A $1.99/week sub on a trivial converter — review risk + thin MRR</h3>
+      <div class="row"><span class="k">What</span> Two problems with the weekly: (1) App Review increasingly scrutinizes short-cycle subscriptions on simple utilities for “ongoing value”; (2) the rational single-use user subscribes weekly, does the job, cancels — so the weekly becomes a de-facto $1.99 one-and-done that cannibalizes annual/lifetime and leaves MRR thin.</div>
+      <div class="row"><span class="k">Why</span> You may be building MRR projections on a tier that mostly produces one-time $1.99 payments and could draw rejection scrutiny on an app whose brand is “no weekly trap” anyway.</div>
+      <div class="row"><span class="k">Fix</span> Strongly consider <strong>dropping the weekly entirely</strong> — annual $9.99 + lifetime $19.99 only. That turns “<strong>no weekly subscriptions, ever</strong>” into a literal paywall headline (weaponizing the #1 category complaint) and sidesteps the review risk. If you keep weekly, model revenue as mostly one-and-done and confirm it survives App Review.</div>
+    </div>
+
+    <h2>Major Concerns</h2>
+    <div class="issue major">
+      <h3>ASO sequence leads with the term you can’t win yet</h3>
+      <div class="row"><span class="k">Risk</span> Medium</div>
+      <div class="row"><span class="k">What</span> The metadata leads on “image converter” (diff 45), owned by the two ~17k incumbents. You won’t crack its top-3 at launch.</div>
+      <div class="row"><span class="k">Fix</span> Win the <strong>low-difficulty tail first</strong> — “heic to jpg” (15), “convert image to pdf” (23) — in subtitle/keywords; let “image converter” come as authority builds. Keep it in the name field, but don’t expect early rank there.</div>
+    </div>
+    <div class="issue major">
+      <h3>Your winnability is real but time-boxed</h3>
+      <div class="row"><span class="k">Risk</span> Medium</div>
+      <div class="row"><span class="k">What</span> The wedge is execution, and an incumbent with 17k reviews (handyCloset/Float) could bolt on an “on-device” badge and a cheap tier in a sprint, neutralizing the ASO message with a review-count advantage you can’t match. (Not a defensibility complaint — a <em>timing</em> one.)</div>
+      <div class="row"><span class="k">Fix</span> Treat the first 90 days as a land-grab: aggressive review-prompt timing (after a successful batch), fast iteration, and ASA on the tail terms the moment organic traction shows.</div>
+    </div>
+    <div class="issue major">
+      <h3>The 25% 30-day repeat KPI fights your own thesis</h3>
+      <div class="row"><span class="k">Risk</span> Medium</div>
+      <div class="row"><span class="k">What</span> You’ve argued this is largely single-use, then set a 25% 30-day repeat target. For a converter that’s likely optimistic and will read as “failure” when it shouldn’t.</div>
+      <div class="row"><span class="k">Fix</span> Make the primary KPI <strong>revenue-per-install</strong> (or free→paid), not retention. Track repeat usage as a directional signal, target ~12–15%, and stop optimizing for retention on a utility.</div>
+    </div>
+
+    <h2>Minor Observations</h2>
+    <ol>
+      <li><strong>Temp-file hygiene</strong> — converting 100 RAW/large images creates big temp files; spec an explicit cleanup or you’ll fill users’ storage. (Folds into the RAW deferral.)</li>
+      <li><strong>Brand vs scope</strong> — “HeicSwap” still reads HEIC-only while the money is in PDF/resize; the Strategist flagged it, the metadata fixes it — just don’t let marketing drift back to “HEIC converter.”</li>
+      <li><strong>Support strategy</strong> — “Contact” in Settings needs a real destination (email/form) and a refund-handling stance, given utility refund rates.</li>
+      <li><strong>Serif Dynamic Type</strong> — verify <code>.serif</code> titles don’t clip at accessibility XXL sizes in the dark mockups.</li>
+    </ol>
+
+    <h2>What's Actually Good</h2>
+    <div class="callout good"><span class="lbl">Credit where due — be specific</span>
+      <ol style="margin:0">
+        <li><strong>The hybrid pricing genuinely answers the churn objection.</strong> Annual + $19.99 lifetime monetizes single-use users once instead of pretending they’ll sustain MRR — and the lifetime-above-annual logic is correct.</li>
+        <li><strong>The teardown is data-grounded, not vibes.</strong> “No whale; the two leaders are cloud-based or ad-supported; the private apps have no traction” is a real, exploitable read of the shelf.</li>
+        <li><strong>Warm Darkroom is a true screenshot differentiator</strong>, and the “developing” reveal is on-brand <em>and</em> cheap to build — rare combination.</li>
+        <li><strong>The honest paywall (no fake countdowns) aligns brand and UX</strong> instead of fighting it — most utilities get this exactly backwards.</li>
+        <li><strong>Anti-goals are disciplined</strong> — no cloud, no ads, no editing. The scope is pointed in the right direction even where v1 is overloaded.</li>
+      </ol>
+    </div>
+
+    <h2>Review Dimensions Summary</h2>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Dimension</th><th>Rating</th><th>Key finding</th></tr></thead>
+      <tbody>
+        <tr><td>Would YOU pay?</td><td><span class="pill warn">Concern</span></td><td>Yes — but the free tier is so generous the mainstream user never has to.</td></tr>
+        <tr><td>Solo-dev reality</td><td><span class="pill warn">Concern</span></td><td>RAW + WebP-encode + share-extension are the schedule risk; core is fine.</td></tr>
+        <tr><td>Scope inflation</td><td><span class="pill warn">Concern</span></td><td>v1 front-loads secondary-persona features; defer them.</td></tr>
+        <tr><td>User journey</td><td><span class="pill warn">Concern</span></td><td>iCloud-optimized photos break the offline claim; no fetch state.</td></tr>
+        <tr><td>Monetization</td><td><span class="pill warn">Concern</span></td><td>Free-gate shape + weekly-sub mix need a rethink.</td></tr>
+        <tr><td>Competitive risk</td><td><span class="pill warn">Medium</span></td><td>Winnable, but the edge is time-boxed; move fast on reviews/ASA.</td></tr>
+        <tr><td>Missing pieces</td><td><span class="pill bad">4 found</span></td><td>Privacy-label accuracy, GDPR consent, temp cleanup, support.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h2>Recommended Next Steps</h2>
+    <ol class="steps">
+      <li><strong>Redesign the free/Pro split</strong> (Critical 1) — value-gate, not daily count. This is the single highest-leverage decision; do it first.</li>
+      <li><strong>Resolve the privacy stack</strong> (Critical 2) — decide analytics-or-not, then make the privacy copy and nutrition label exactly true.</li>
+      <li><strong>Re-cut the MVP scope</strong> (Critical 3) — RAW / WebP-encode / share-extension → v1.1; lock a leaner, shippable v1.</li>
+      <li><strong>Fix the privacy/offline copy</strong> (Critical 4) — “never uploaded · no server conversion” + an iCloud-download state.</li>
+      <li><strong>Decide the weekly’s fate</strong> (Critical 5) — ideally drop it and headline “no weekly subscriptions, ever.”</li>
+      <li><strong>Reset KPIs &amp; ASO sequence</strong> — revenue-per-install over retention; win the tail keywords first.</li>
+    </ol>
+
+  </article>
+</main>
+<footer>Generated by ios-product-team · Devil's Advocate Review · self-contained HTML. Criticism is in service of shipping something excellent.</footer>
+</body>
+</html>

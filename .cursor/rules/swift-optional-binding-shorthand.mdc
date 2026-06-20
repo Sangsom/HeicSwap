@@ -1,0 +1,61 @@
+# Swift Optional Binding Shorthand
+
+## Rule: Use Swift 5.7+ Optional Binding Shorthand
+
+**When the variable name matches the optional value, use the shorthand syntax:**
+
+```swift
+// ✅ Correct - Use shorthand when variable name matches
+if let dividend {
+    // Use dividend
+}
+
+if let error {
+    // Use error
+}
+
+if let subValue {
+    // Use subValue
+}
+
+// ❌ Wrong - Verbose syntax when shorthand is available
+if let dividend = dividend {
+    // Use dividend
+}
+
+if let error = error {
+    // Use error
+}
+```
+
+## When NOT to use shorthand
+
+**Only use shorthand when the variable name exactly matches the optional value:**
+
+```swift
+// ✅ Correct - Different names, cannot use shorthand
+if let currentPrice = holding.currentPrice {
+    // Use currentPrice
+}
+
+if let exDate = dividend.nextExDate {
+    // Use exDate
+}
+
+if let holding = holdingToEdit {
+    // Use holding
+}
+```
+
+## Examples from codebase
+
+- `if let dividend = dividend` → `if let dividend`
+- `if let error = error` → `if let error`
+- `if let subValue = subValue` → `if let subValue`
+- `if let gainLoss = gainLoss` → `if let gainLoss`
+
+## Enforcement
+
+- **Always** use the shorthand syntax when the variable name matches the optional value
+- This makes code more concise and readable
+- Available in Swift 5.7+ (iOS 16+)

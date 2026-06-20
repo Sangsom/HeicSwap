@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design Spec — HeicSwap (Warm Darkroom)</title>
+<style>
+  :root{
+    /* Document chrome themed in the chosen direction: Warm Darkroom — light/paper variant */
+    --ink:#2A1F1A; --muted:#6E5D52; --faint:#9c8a7d; --line:#EBDDD0;
+    --bg:#FFFDF9; --surface:#FBF3EC; --surface-2:#F3E7DC;
+    --accent:#D9542F; --accent-2:#E84B3C;
+    --ok:#4E8A52; --warn:#C98A17; --bad:#C8432F;
+    --radius:16px; --maxw:900px;
+    --serif:"New York",Georgia,"Times New Roman",serif;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0; background:var(--surface); color:var(--ink);
+    font:16px/1.62 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;}
+  main{max-width:var(--maxw); margin:0 auto; padding:0 24px 72px}
+  .sheet{background:var(--bg); margin:28px auto; padding:48px 56px; border:1px solid var(--line);
+    border-radius:var(--radius); box-shadow:0 1px 2px rgba(60,30,15,.05),0 14px 30px rgba(60,30,15,.07)}
+  .doc-head{border-bottom:2px solid var(--ink); padding-bottom:20px; margin-bottom:34px}
+  .eyebrow{font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 8px}
+  h1{font-family:var(--serif); font-style:italic; font-size:36px; line-height:1.1; margin:0 0 10px; letter-spacing:-.01em; font-weight:700}
+  .doc-meta{color:var(--muted); font-size:14px; margin:0}
+  h2{font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); font-weight:700;
+    margin:44px 0 16px; padding-bottom:8px; border-bottom:1px solid var(--line)}
+  h3{font-family:var(--serif); font-size:21px; margin:26px 0 8px; letter-spacing:-.01em; font-weight:600}
+  p{margin:0 0 14px} a{color:var(--accent)} ul,ol{margin:0 0 16px; padding-left:22px} li{margin:4px 0}
+  strong{font-weight:680}
+  code{font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; background:var(--surface-2); padding:1px 6px; border-radius:6px}
+  pre{background:#241B18; color:#F4EBE3; padding:16px 18px; border-radius:12px; overflow:auto; font-size:13px; line-height:1.5}
+  .pill{display:inline-block; font-size:12px; font-weight:700; padding:4px 11px; border-radius:999px}
+  .pill.dir{background:rgba(217,84,47,.13); color:var(--accent)}
+  .pill.ok{background:rgba(78,138,82,.15); color:var(--ok)} .pill.warn{background:rgba(201,138,23,.16); color:var(--warn)}
+  .callout{border-left:3px solid var(--accent); background:var(--surface); padding:14px 18px; border-radius:0 10px 10px 0; margin:18px 0}
+  .callout.win{border-color:var(--ok)} .callout.sig{border-color:var(--accent-2)}
+  .callout .lbl{font-size:11px; letter-spacing:.12em; text-transform:uppercase; font-weight:700; color:var(--muted); display:block; margin-bottom:4px}
+  table{width:100%; border-collapse:collapse; margin:0 0 20px; font-size:14.5px}
+  th{text-align:left; background:#2A1F1A; color:#FBF3EC; font-weight:600; padding:9px 12px; font-size:12.5px}
+  th:first-child{border-radius:8px 0 0 0} th:last-child{border-radius:0 8px 0 0}
+  td{padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .tbl-wrap{overflow-x:auto; margin:0 0 20px} .tbl-wrap table{margin:0}
+  .sw{display:inline-block; width:16px; height:16px; border-radius:4px; border:1px solid rgba(0,0,0,.14); vertical-align:middle; margin-right:7px}
+  .two{display:grid; grid-template-columns:1fr 1fr; gap:22px} .muted{color:var(--muted)} .small{font-size:13px}
+  hr{border:none; border-top:1px solid var(--line); margin:32px 0}
+
+  /* phone mockups — Warm Darkroom dark (hero) */
+  .mocks{display:flex; flex-wrap:wrap; gap:26px; justify-content:center; margin:14px 0}
+  .sample{width:228px} .sample figcaption{font-size:12.5px; color:var(--muted); text-align:center; margin-top:9px}
+  .sample figcaption b{color:var(--ink)}
+  .frame{width:228px; height:472px; border-radius:34px; background:#0f0b0a; padding:9px; margin:0 auto; box-shadow:0 14px 32px rgba(60,30,15,.22)}
+  .glass{width:100%; height:100%; border-radius:26px; overflow:hidden; display:flex; flex-direction:column; background:#1A1413; position:relative}
+  .scr{flex:1; display:flex; flex-direction:column; padding:18px 14px 15px; gap:12px; color:#F4EBE3}
+  .scr .top{display:flex; align-items:center; justify-content:space-between}
+  .scr .ttl{font-family:var(--serif); font-style:italic; font-weight:700; font-size:22px; color:#F4EBE3}
+  .scr .badge{font-size:10px; font-weight:700; padding:4px 9px; border-radius:999px; background:rgba(255,123,84,.16); color:#FF9F7E; white-space:nowrap}
+  .scr .grid{display:grid; grid-template-columns:repeat(4,1fr); gap:6px; position:relative}
+  .scr .grid.glow::after{content:""; position:absolute; inset:-4px; border-radius:12px; pointer-events:none;
+    background:radial-gradient(120% 90% at 28% -10%, rgba(255,123,84,.28), rgba(232,75,60,.05) 55%, transparent)}
+  .scr .th{aspect-ratio:1; border-radius:9px}
+  .scr .th.dev{filter:brightness(.32) saturate(.6)} /* "developing" — not yet revealed */
+  .scr .th.half{filter:brightness(.7) saturate(.85)}
+  .scr .more{aspect-ratio:1; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; background:#251B18; color:#c79a85}
+  .scr .swap{display:flex; align-items:center; justify-content:center; gap:14px; padding:13px; border-radius:14px; font-weight:800; background:#251B18}
+  .scr .swap .ar{color:#FF7B54; font-size:18px}
+  .scr .note{font-size:10.5px; text-align:center; color:#9c7d70}
+  .scr .bar{height:7px; border-radius:99px; background:#2e211d; overflow:hidden}
+  .scr .bar i{display:block; height:100%; width:62%; background:linear-gradient(90deg,#FF7B54,#E84B3C)}
+  .scr .spacer{flex:1; min-height:2px}
+  .scr .cta{padding:13px; border-radius:14px; text-align:center; font-weight:800; font-size:14.5px; background:linear-gradient(135deg,#FF7B54,#E84B3C); color:#23100b}
+  .scr .free{text-align:center; font-size:10.5px; color:#9c7d70}
+  /* paywall mock */
+  .scr .pw-h{font-family:var(--serif); font-style:italic; font-size:20px; line-height:1.2; margin-top:6px}
+  .scr .price{border:1px solid #3a2a25; border-radius:12px; padding:9px 12px; font-size:12px; display:flex; justify-content:space-between; align-items:center}
+  .scr .price.sel{border-color:#FF7B54; background:rgba(255,123,84,.10)}
+  .scr .price .tag{font-size:9px; background:#FF7B54; color:#23100b; padding:2px 7px; border-radius:999px; font-weight:800}
+  .ph1{background:linear-gradient(140deg,#8fc0ff,#d7ecff)} .ph2{background:linear-gradient(140deg,#ffb27f,#ff7f9e)}
+  .ph3{background:linear-gradient(140deg,#e8e4db,#c9c3b5)} .ph4{background:linear-gradient(140deg,#7fd6a8,#bdeccd)}
+
+  footer{max-width:var(--maxw); margin:0 auto; padding:0 24px 40px; color:var(--faint); font-size:12.5px}
+  @media print{body{background:#fff} .sheet{box-shadow:none;border:none;margin:0;padding:0} h2{break-after:avoid}
+    h3,table,.callout,.sample,pre{break-inside:avoid} a{color:var(--ink)}}
+  @media (max-width:620px){.sheet{padding:28px 18px} .two{grid-template-columns:1fr} h1{font-size:28px}}
+</style>
+</head>
+<body>
+<main>
+  <article class="sheet">
+    <header class="doc-head">
+      <p class="eyebrow">Design Spec · UX/UI Designer</p>
+      <h1>HeicSwap — “Warm Darkroom”</h1>
+      <p class="doc-meta">HeicSwap · 2026-06-19 · ios-product-team · Input: PRD draft v0.9
+        &nbsp;·&nbsp; <span class="pill dir">Direction 04 — Warm Darkroom</span></p>
+    </header>
+
+    <p>This spec builds the entire design system on the chosen direction: <strong>Warm Darkroom</strong> — a
+    dark-first, photographic identity with a safelight-amber accent and serif display type. It is the
+    <em>anti-utility</em> look: warm and crafted where every competitor is a cold blue grid.</p>
+    <div class="callout sig"><span class="lbl">The design thesis — warmth in the chrome, speed in the flow</span>
+      The personality (serif titles, safelight glow, warm surfaces) lives in the <strong>chrome, onboarding, empty
+      states, and the signature “developing” animation</strong>. The conversion path itself stays crisp: one screen,
+      one primary action, large legible labels, system-sans body. The darkroom metaphor is the brand; it never slows
+      the task.</div>
+
+    <!-- 1 -->
+    <h2>1. User Flow Maps</h2>
+    <h3>Onboarding (first launch, ≤60s)</h3>
+<pre>[Launch] → [1 · "Convert any photo" value prop]
+        → [2 · "Developed on your device. Never uploaded." privacy]
+        → [3 · "Add photos to start" → add-only Photos prompt]
+        → [Home · Empty State]
+            ↳ "Skip" (top-right) at any point → [Home · Empty State]</pre>
+    <h3>Core loop</h3>
+<pre>[Home/Empty] → (Add Photos / Import from Files) → [Home · Convert Queue]
+   → (set target format · resize · PDF · strip-metadata)         [Options sheet]
+   → (tap Convert) → [Developing… progress] → [Results]
+   → (Save to Photos / Save to Files / Share) → [Home]
+                                          ↳ (Cancel) → [Home · queue intact]</pre>
+    <h3>Monetization &amp; error flows</h3>
+<pre>(Convert beyond daily cap) ─┐
+(Tap Pro feature: RAW/WebP/PDF/resize) ─┤→ [Paywall sheet] → (Buy) → [unlock → continue]
+                            │                           ↳ (Dismiss) → [continue free allowance]
+[Any convert] → (1 item fails) → [Results: item flagged, rest succeed, "Retry"]
+[Import] → (unsupported type) → [inline "Can't convert this", item skipped]</pre>
+
+    <!-- 2 -->
+    <h2>2. Screen Inventory</h2>
+    <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Screen</th><th>Purpose</th><th>Primary action</th><th>Navigation</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Onboarding</td><td>Value + privacy promise + permission</td><td>Continue / Skip</td><td>Full-screen cover, paged</td></tr>
+        <tr><td>2</td><td>Home / Convert</td><td>Import, build queue, choose format, convert</td><td>Convert</td><td>Root</td></tr>
+        <tr><td>3</td><td>Options sheet</td><td>Target format, quality, resize, PDF, strip metadata</td><td>Apply</td><td><code>.sheet</code> (medium detent)</td></tr>
+        <tr><td>4</td><td>Developing (progress)</td><td>Show conversion underway</td><td>—(auto) / Cancel</td><td>Inline overlay</td></tr>
+        <tr><td>5</td><td>Results</td><td>Confirm output, save or share</td><td>Save / Share</td><td><code>.sheet</code> (large detent)</td></tr>
+        <tr><td>6</td><td>Paywall</td><td>Convert free users at moment of need</td><td>Start / Buy</td><td><code>.sheet</code> (large)</td></tr>
+        <tr><td>7</td><td>Settings</td><td>Defaults, subscription, privacy, about</td><td>—</td><td>Push from Home nav</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="small muted">7 screens — within the 7±2 MVP target. Empty / loading / error are <em>states</em> of Home &amp; Results, not separate screens.</p>
+
+    <!-- 3 -->
+    <h2>3. Screen Specifications</h2>
+    <div class="mocks">
+      <figure class="sample">
+        <div class="frame"><div class="glass"><div class="scr">
+          <div class="top"><span class="ttl">Convert</span><span class="badge">⛊ On-device</span></div>
+          <div class="grid glow"><span class="th ph2"></span><span class="th ph1"></span><span class="th ph3"></span><span class="more">+9</span></div>
+          <div class="swap"><span>HEIC</span><span class="ar">→</span><span>JPG</span></div>
+          <div class="spacer"></div>
+          <div class="cta">Convert 12 photos</div>
+          <div class="free">10 free conversions left today</div>
+        </div></div></div>
+        <figcaption><b>Home / Convert</b> — safelight glow on the queue.</figcaption>
+      </figure>
+      <figure class="sample">
+        <div class="frame"><div class="glass"><div class="scr">
+          <div class="top"><span class="ttl">Developing…</span><span class="badge">8 / 12</span></div>
+          <div class="grid"><span class="th ph2"></span><span class="th ph1 half"></span><span class="th ph3 dev"></span><span class="more">+9</span></div>
+          <div class="bar"><i></i></div>
+          <div class="note">Converting on your iPhone — nothing uploaded</div>
+          <div class="spacer"></div>
+          <div class="cta" style="background:#251B18;color:#F4EBE3">Cancel</div>
+        </div></div></div>
+        <figcaption><b>Developing</b> — thumbnails reveal as they finish.</figcaption>
+      </figure>
+      <figure class="sample">
+        <div class="frame"><div class="glass"><div class="scr">
+          <div class="ttl" style="text-align:center">HeicSwap Pro</div>
+          <div style="text-align:center"><span class="badge">⛊ Always on-device</span></div>
+          <div class="pw-h">Unlimited conversions, every format, on your device.</div>
+          <div class="note" style="text-align:left;color:#b6a398">✓ Unlimited batch &nbsp; ✓ RAW · WebP · PDF<br>✓ Resize to size &nbsp; ✓ Strip location data</div>
+          <div class="spacer"></div>
+          <div class="price sel"><span><b>Yearly</b> · $9.99/yr</span><span class="tag">BEST VALUE</span></div>
+          <div class="price"><span>Weekly · $1.99</span></div>
+          <div class="price"><span>Lifetime · $19.99 once</span></div>
+          <div class="cta">Continue</div>
+          <div class="free">Restore · Terms · Privacy · No tricks, cancel anytime</div>
+        </div></div></div>
+        <figcaption><b>Paywall</b> — honest, annual default, no fake timer.</figcaption>
+      </figure>
+    </div>
+
+    <h3>2 · Home / Convert</h3>
+    <p><strong>Purpose:</strong> the whole app in one screen. <strong>Primary action:</strong> Convert.
+    <strong>Secondary:</strong> add more, change format, open Options, Settings (nav).</p>
+<pre>┌───────────────────────────┐
+│ Convert            ⛊ On-device │  ← serif italic title + trust badge
+├───────────────────────────┤
+│ ▢ ▢ ▢ ▢   (queue, safelight glow) │
+│ ▢ ▢ +9                          │
+├───────────────────────────┤
+│   HEIC  →  JPG    (tap = Options) │  ← format swap row
+├───────────────────────────┤
+│        [ Convert 12 photos ]      │  ← amber gradient, only bold CTA
+│        10 free left today         │
+└───────────────────────────┘</pre>
+    <p><strong>States:</strong></p>
+    <ul>
+      <li><strong>Empty (first run):</strong> warm illustration (a single photo “developing”), serif line “Drop in a photo to begin,” big <em>Add Photos</em> button. No format row yet.</li>
+      <li><strong>Loaded:</strong> as above; Convert enabled.</li>
+      <li><strong>Loading/Developing:</strong> see mock — progress bar + thumbnails revealing.</li>
+      <li><strong>Error:</strong> inline amber banner “2 files couldn’t be converted · Retry,” rest proceed.</li>
+    </ul>
+
+    <h3>3 · Options sheet · 5 · Results · 6 · Paywall · 7 · Settings</h3>
+    <ul>
+      <li><strong>Options</strong> (<code>.sheet</code>, medium detent): target format chips (JPG·PNG·HEIC·WebP·PDF), quality slider, “Resize to…” (max px or target MB), “Remove location &amp; metadata” toggle. Pro-only chips show a small amber lock.</li>
+      <li><strong>Results</strong> (<code>.sheet</code>, large): converted thumbnails + new sizes, primary <em>Save</em> (Photos/Files action) and <em>Share</em>; “Convert more” secondary.</li>
+      <li><strong>Paywall</strong> (<code>.sheet</code>, large): see mock + §6.</li>
+      <li><strong>Settings</strong> (push): grouped lists — Defaults, Subscription, Privacy, About.</li>
+    </ul>
+
+    <!-- 4 -->
+    <h2>4. Interaction Specifications</h2>
+    <div class="two">
+      <div>
+        <h3>Gestures</h3>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Gesture</th><th>Where</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td>Tap</td><td>Queue thumbnail</td><td>Preview · remove (✕)</td></tr>
+            <tr><td>Drag</td><td>Queue (PDF mode)</td><td>Reorder pages</td></tr>
+            <tr><td>Long-press</td><td>Thumbnail</td><td>Context menu (remove, preview)</td></tr>
+            <tr><td>Tap</td><td>Format row</td><td>Open Options sheet</td></tr>
+            <tr><td>Swipe down</td><td>Any sheet</td><td>Dismiss</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+      <div>
+        <h3>Haptics</h3>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Event</th><th>Type</th></tr></thead>
+          <tbody>
+            <tr><td>Conversion complete</td><td><code>.success</code></td></tr>
+            <tr><td>Format chip selected</td><td><code>.selection</code></td></tr>
+            <tr><td>Convert tapped</td><td><code>.impact(.medium)</code></td></tr>
+            <tr><td>Remove all / destructive</td><td><code>.warning</code></td></tr>
+            <tr><td>Hit free cap</td><td><code>.impact(.rigid)</code></td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+    <div class="callout sig"><span class="lbl">Signature animation — “Developing”</span>
+      As each file finishes, its thumbnail <strong>reveals from dark to full color</strong> (brightness .3→1 + slight
+      warm-tint fade), like a print surfacing in a darkroom. ~400ms, ease-out, staggered per item. A subtle amber
+      safelight gradient sits behind the queue. <strong>Reduced Motion:</strong> replace the reveal with a plain
+      crossfade (no brightness sweep), keep the progress bar.</div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Animation</th><th>Trigger</th><th>Duration · curve</th></tr></thead>
+      <tbody>
+        <tr><td>Thumbnail “develop” reveal</td><td>Per-item conversion done</td><td>400ms · ease-out (staggered)</td></tr>
+        <tr><td>Convert → progress transition</td><td>Convert tapped</td><td>300ms · spring</td></tr>
+        <tr><td>Results sheet rise</td><td>Batch complete</td><td>System sheet (.large)</td></tr>
+        <tr><td>Format swap arrow flip</td><td>Swap source/target</td><td>200ms · ease-in-out</td></tr>
+      </tbody>
+    </table></div>
+
+    <!-- 5 -->
+    <h2>5. Design System Tokens</h2>
+    <h3>Typography — serif display + system body</h3>
+    <p class="small muted">SwiftUI: titles use <code>.font(.system(.largeTitle, design: .serif))</code> (New York — native, Dynamic-Type safe); body uses default SF Pro. Serif is for display/titles only, never body.</p>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Style</th><th>Size · weight</th><th>Family</th><th>Use</th></tr></thead>
+      <tbody>
+        <tr><td>Large Title</td><td>34 · Bold (italic option)</td><td>Serif (New York)</td><td>Screen titles (“Convert”)</td></tr>
+        <tr><td>Title 2</td><td>22 · Semibold</td><td>Serif</td><td>Paywall headline, empty-state line</td></tr>
+        <tr><td>Headline</td><td>17 · Semibold</td><td>SF Pro</td><td>List item titles, format labels</td></tr>
+        <tr><td>Body</td><td>17 · Regular</td><td>SF Pro</td><td>Primary content</td></tr>
+        <tr><td>Callout / Subhead</td><td>16 / 15 · Regular</td><td>SF Pro</td><td>Secondary content, settings</td></tr>
+        <tr><td>Footnote</td><td>13 · Regular</td><td>SF Pro</td><td>“free left today”, hints</td></tr>
+        <tr><td>Caption</td><td>12 · Regular</td><td>SF Pro</td><td>Badges, file sizes</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Color — light (Warm Paper) &amp; dark (Darkroom, hero)</h3>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Token</th><th>Light</th><th>Dark</th><th>Use</th></tr></thead>
+      <tbody>
+        <tr><td>Background</td><td><span class="sw" style="background:#FBF3EC"></span>#FBF3EC</td><td><span class="sw" style="background:#1A1413"></span>#1A1413</td><td>App background</td></tr>
+        <tr><td>Surface</td><td><span class="sw" style="background:#FFFDF9"></span>#FFFDF9</td><td><span class="sw" style="background:#251B18"></span>#251B18</td><td>Cards, sheets</td></tr>
+        <tr><td>Surface-2</td><td><span class="sw" style="background:#F3E7DC"></span>#F3E7DC</td><td><span class="sw" style="background:#30221E"></span>#30221E</td><td>Inputs, chips</td></tr>
+        <tr><td>Primary text</td><td><span class="sw" style="background:#2A1F1A"></span>#2A1F1A</td><td><span class="sw" style="background:#F4EBE3"></span>#F4EBE3</td><td>Headlines, body</td></tr>
+        <tr><td>Secondary text</td><td><span class="sw" style="background:#6E5D52"></span>#6E5D52</td><td><span class="sw" style="background:#B6A398"></span>#B6A398</td><td>Captions, hints</td></tr>
+        <tr><td>Accent (safelight)</td><td><span class="sw" style="background:#D9542F"></span>#D9542F</td><td><span class="sw" style="background:#FF7B54"></span>#FF7B54</td><td>CTA, active, glow</td></tr>
+        <tr><td>Accent-2</td><td><span class="sw" style="background:#E84B3C"></span>#E84B3C</td><td><span class="sw" style="background:#E84B3C"></span>#E84B3C</td><td>Gradient end, emphasis</td></tr>
+        <tr><td>Success</td><td><span class="sw" style="background:#4E8A52"></span>#4E8A52</td><td><span class="sw" style="background:#5FB07A"></span>#5FB07A</td><td>Done states</td></tr>
+        <tr><td>Destructive</td><td><span class="sw" style="background:#C8432F"></span>#C8432F</td><td><span class="sw" style="background:#FF6A52"></span>#FF6A52</td><td>Delete, remove</td></tr>
+        <tr><td>Separator</td><td><span class="sw" style="background:#EBDDD0"></span>#EBDDD0</td><td><span class="sw" style="background:#3A2A25"></span>#3A2A25</td><td>Hairlines</td></tr>
+      </tbody>
+    </table></div>
+    <p class="small muted"><strong>CTA contrast rule:</strong> the amber button uses <em>dark</em> text (<code>#23100b</code>), never white (white on #FF7B54 fails AA). Verified pairs in §7.</p>
+
+    <h3>Spacing · radii · materials</h3>
+    <div class="two">
+      <div>
+<pre>Spacing — 4pt grid
+4   tight (icon+label)
+8   within components
+12  list items
+16  section padding
+24  between sections
+32  major breaks</pre>
+      </div>
+      <div>
+<pre>Corner radii (warm/filmic — slightly rounder)
+Buttons      14
+Cards/sheets 18
+Inputs       12
+Thumbnails   10
+Badges       capsule
+
+Materials
+Warm shadow  rgba(60,30,15,.10)
+Dark glow    amber blur on primary
+Blur         .ultraThin on sheets</pre>
+      </div>
+    </div>
+
+    <!-- 6 -->
+    <h2>6. Critical UX Patterns</h2>
+    <h3>Onboarding — 3 screens, no account, no paywall</h3>
+    <ol>
+      <li><strong>Value:</strong> serif “Convert any photo.” — HEIC, RAW, PNG → JPG, PDF. Warm hero of a photo developing.</li>
+      <li><strong>Privacy (the wedge):</strong> “Developed on your device. Never uploaded.” — shield + safelight.</li>
+      <li><strong>Permission:</strong> “Add photos to start” → triggers <em>add-only</em> Photos access; “Skip” top-right throughout. Auth strategy: <strong>defer</strong> everything; no login ever.</li>
+    </ol>
+    <h3>Paywall — hard at the moment of need, but honest</h3>
+    <ul>
+      <li><strong>Type:</strong> hard gate on Pro features &amp; the daily cap; <em>not</em> shown during onboarding.</li>
+      <li><strong>Layout:</strong> the <strong>⛊ on-device trust badge sits at the top</strong> (you’re paying for unlimited <em>private</em> conversion, not just more of it) → serif headline → 4 benefit ticks → pricing (Yearly $9.99 <em>default-highlighted “Best value”</em> · Weekly $1.99 · Lifetime $19.99) → amber Continue → Restore · Terms · Privacy.</li>
+      <li><strong>Honesty:</strong> no fake countdowns, no pre-checked weekly, explicit “cancel anytime.” This <em>is</em> the brand promise — the thing the incumbents’ 1-star reviews beg for.</li>
+      <li><strong>Persistent trust element:</strong> the <code>⛊ On-device</code> badge is a recurring signal shown on Home, Developing, Results <em>and</em> the paywall — privacy is reinforced exactly where users pay.</li>
+    </ul>
+    <h3>Empty states</h3>
+    <ul>
+      <li><strong>First-time:</strong> warm “developing photo” illustration + “Drop in a photo to begin” + <em>Add Photos</em>.</li>
+      <li><strong>No results / all removed:</strong> neutral “Your queue is empty.”</li>
+      <li><strong>Error:</strong> “Couldn’t convert these 2 files” + <em>Retry</em>, in the interface’s warm voice — never a raw error code.</li>
+    </ul>
+    <h3>Settings (grouped)</h3>
+    <p class="small">Defaults (format, quality, strip-metadata default) · Subscription (status, Restore, Manage) · Privacy (statement, “nothing is collected”) · About (rate, contact, Terms).</p>
+
+    <!-- 7 -->
+    <h2>7. Accessibility Requirements</h2>
+    <ul>
+      <li>☑ VoiceOver labels on every control (thumbnails: “Photo 3, HEIC, tap to remove”); hints on non-obvious actions.</li>
+      <li>☑ All tap targets ≥ 44×44pt (queue ✕ buttons get padded hit areas).</li>
+      <li>☑ WCAG AA contrast — verified pairs: <code>#F4EBE3</code>/<code>#1A1413</code> ≈ 13:1 · <code>#2A1F1A</code>/<code>#FBF3EC</code> ≈ 12:1 · <code>#6E5D52</code>/<code>#FBF3EC</code> ≈ 4.6:1 · CTA <code>#23100b</code>/<code>#FF7B54</code> ≈ 7:1. Never white-on-amber.</li>
+      <li>☑ Dynamic Type — serif titles via <code>.serif</code> design scale with the system; test to XXL.</li>
+      <li>☑ Reduced Motion — “develop” reveal → crossfade; no brightness sweep.</li>
+      <li>☑ Don’t rely on color alone — the free-cap indicator always shows text (“10 left”), not just amber.</li>
+      <li>☑ Bold Text &amp; Smart Invert respected; verify amber doesn’t invert into illegibility.</li>
+    </ul>
+
+    <!-- 8 -->
+    <h2>8. Platform Considerations</h2>
+    <ul>
+      <li><strong>Dark mode:</strong> the <em>hero</em>. Default follows system; Darkroom (dark) and Warm Paper (light) are both first-class. Offer an in-app override in Settings.</li>
+      <li><strong>iPad:</strong> supported — wider two-pane (queue left, options right), drag-and-drop import. The safelight glow scales but stays subtle.</li>
+      <li><strong>Landscape:</strong> iPhone is portrait-primary for the converter (simpler, faster); iPad supports both. Nothing critical breaks in landscape — the queue grid reflows.</li>
+    </ul>
+
+  </article>
+</main>
+<footer>Generated by ios-product-team · Design Spec (Direction 04 · Warm Darkroom) · self-contained HTML. Phone mockups are CSS approximations; final assets follow these tokens.</footer>
+</body>
+</html>

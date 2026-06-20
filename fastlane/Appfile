@@ -1,0 +1,6 @@
+# Appfile - https://docs.fastlane.tools/advanced/#appfile
+# Update these values for your app. Use environment variables for CI.
+
+app_identifier("com.domanovs.rinalds.ios.HeicSwap")
+apple_id(ENV["FASTLANE_APPLE_ID"] || "your-apple-id@example.com")
+team_id(ENV["FASTLANE_TEAM_ID"] || "YOUR_TEAM_ID")

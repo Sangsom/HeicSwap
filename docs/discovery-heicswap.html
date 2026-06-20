@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Discovery — HeicSwap</title>
+<style>
+  :root{
+    --ink:#1b2330; --muted:#5b6676; --faint:#8a94a3; --line:#e7eaef;
+    --bg:#ffffff; --surface:#f7f8fa; --surface-2:#eef1f5;
+    --accent:#0f8f87;            /* primary accent (teal) — links, headers, CTAs */
+    --accent-2:#e2603b;          /* secondary accent (coral) — emphasis, risks */
+    --ok:#1f9d62; --warn:#c98a17; --bad:#c8432f;
+    --radius:14px; --maxw:860px;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--surface); color:var(--ink);
+    font:16px/1.62 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  main{max-width:var(--maxw); margin:0 auto; padding:0 24px 72px}
+  .sheet{background:var(--bg); margin:28px auto; padding:48px 56px; border:1px solid var(--line);
+    border-radius:var(--radius); box-shadow:0 1px 2px rgba(20,30,45,.04),0 12px 28px rgba(20,30,45,.05)}
+  /* Header */
+  .doc-head{border-bottom:2px solid var(--ink); padding-bottom:20px; margin-bottom:36px}
+  .eyebrow{font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 8px}
+  h1{font-size:34px; line-height:1.12; margin:0 0 10px; letter-spacing:-.02em; font-weight:800}
+  .doc-meta{color:var(--muted); font-size:14px; margin:0}
+  /* Headings */
+  h2{font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); font-weight:700;
+    margin:40px 0 14px; padding-bottom:8px; border-bottom:1px solid var(--line)}
+  h3{font-size:19px; margin:28px 0 8px; letter-spacing:-.01em}
+  p{margin:0 0 14px} a{color:var(--accent); text-underline-offset:2px}
+  ul,ol{margin:0 0 16px; padding-left:22px} li{margin:4px 0}
+  strong{font-weight:680} code{font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
+    background:var(--surface-2); padding:1px 6px; border-radius:6px}
+  pre{background:var(--ink); color:#e8edf3; padding:16px 18px; border-radius:10px; overflow:auto; font-size:13px}
+  /* Status pills */
+  .pill{display:inline-block; font-size:12px; font-weight:700; padding:4px 11px; border-radius:999px; letter-spacing:.02em}
+  .pill.build,.pill.ok{background:rgba(31,157,98,.12); color:var(--ok)}
+  .pill.explore,.pill.warn{background:rgba(201,138,23,.14); color:var(--warn)}
+  .pill.pass,.pill.bad{background:rgba(200,67,47,.12); color:var(--bad)}
+  .pill.neutral{background:var(--surface-2); color:var(--muted)}
+  /* Callouts */
+  .callout{border-left:3px solid var(--accent); background:var(--surface); padding:14px 18px; border-radius:0 10px 10px 0; margin:0 0 18px}
+  .callout.win{border-color:var(--ok)} .callout.warn{border-color:var(--warn)} .callout.risk{border-color:var(--accent-2)}
+  .callout .lbl{font-size:11px; letter-spacing:.12em; text-transform:uppercase; font-weight:700; color:var(--muted); display:block; margin-bottom:4px}
+  /* Tables */
+  table{width:100%; border-collapse:collapse; margin:0 0 20px; font-size:14.5px}
+  th{text-align:left; background:var(--ink); color:#fff; font-weight:600; padding:9px 12px; font-size:12.5px; letter-spacing:.02em}
+  th:first-child{border-radius:8px 0 0 0} th:last-child{border-radius:0 8px 0 0}
+  td{padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .tbl-wrap{overflow-x:auto; margin:0 0 20px}
+  .tbl-wrap table{margin:0}
+  /* Score grid */
+  .scores{display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:12px; margin:0 0 22px}
+  .score{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px 16px}
+  .score .n{font-size:28px; font-weight:800; letter-spacing:-.02em} .score .n small{font-size:14px; color:var(--faint); font-weight:600}
+  .score .k{font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-top:2px}
+  .total{font-size:40px; font-weight:800; color:var(--accent); letter-spacing:-.02em}
+  /* Design-directions gallery */
+  .directions{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:20px; margin:8px 0 24px}
+  .dir{border:1px solid var(--line); border-radius:16px; overflow:hidden; background:var(--bg)}
+  .dir .head{padding:14px 16px} .dir .name{font-weight:800; font-size:17px} .dir .mood{color:var(--muted); font-size:13px; margin-top:2px}
+  .palette{display:flex; height:46px} .palette span{flex:1} .swatches{display:flex; gap:6px; padding:12px 16px; flex-wrap:wrap}
+  .chip{display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted)} .chip i{width:14px; height:14px; border-radius:4px; border:1px solid rgba(0,0,0,.08); display:inline-block}
+  .dir .body{padding:0 16px 16px; font-size:13.5px}
+  /* Phone mock */
+  .phone{width:200px; height:412px; border-radius:30px; background:var(--ink); padding:9px; margin:6px auto; box-shadow:0 8px 24px rgba(20,30,45,.18)}
+  .phone .screen{width:100%; height:100%; border-radius:23px; overflow:hidden; background:#fff; display:flex; flex-direction:column}
+  /* Layout helpers */
+  .two-col{display:grid; grid-template-columns:1fr 1fr; gap:24px} .muted{color:var(--muted)} .small{font-size:13px}
+  hr{border:none; border-top:1px solid var(--line); margin:32px 0}
+  footer{max-width:var(--maxw); margin:0 auto; padding:0 24px 40px; color:var(--faint); font-size:12.5px}
+  /* Print */
+  @media print{
+    body{background:#fff} .sheet{box-shadow:none; border:none; margin:0; padding:0}
+    h2{break-after:avoid} h3,table,.callout,.dir,.score{break-inside:avoid}
+    main{max-width:none; padding:0} a{color:var(--ink); text-decoration:none}
+    .pill{border:1px solid var(--line)}
+  }
+  @media (max-width:620px){.sheet{padding:28px 20px} .two-col{grid-template-columns:1fr} h1{font-size:27px}}
+</style>
+</head>
+<body>
+<main>
+  <article class="sheet">
+    <header class="doc-head">
+      <p class="eyebrow">Discovery · Product Strategist</p>
+      <h1>HeicSwap — the honest, on-device image converter</h1>
+      <p class="doc-meta">HeicSwap · 2026-06-19 · ios-product-team
+        &nbsp;·&nbsp; <span class="pill build">BUILD · 8.0 / 10</span></p>
+    </header>
+
+    <!-- ===== 1. OPPORTUNITY SUMMARY ===== -->
+    <h2>1. Opportunity Summary</h2>
+    <h3>The idea</h3>
+    <p><strong>HeicSwap</strong> is a complete, ad-free, <strong>100% on-device</strong> image converter for iPhone:
+    HEIC / RAW / PNG / WebP ⇄ JPG, plus image→PDF — with one-tap batch, resize-to-target-size, and EXIF/GPS
+    stripping. It enters a <em>proven-paying, beatable</em> utility category and wins not on a novel feature, but on
+    <strong>execution</strong>: the fastest batch, the widest honest format coverage, one clean screen, no ads, no
+    surprise weekly billing, and tight ASO on every format term the incumbents leave on the table.</p>
+
+    <div class="callout">
+      <span class="lbl">Idea-loop seed · already validated — building on it, not re-deriving demand</span>
+      Sourced from the “💡 Idea Pipeline” page <em>“HeicSwap — complete on-device image/HEIC converter”</em>
+      (Run 2026-06-17, recalibrated 2026-06-19). <strong>Score 75/100 · Critic: Confirmed · Status: ✅ Validated.</strong>
+      Seed sub-scores — Demand 7 · Monetization 8 · Differentiation 6 · Difficulty 7 · Risk 8.
+      Keyword cluster: <code>image converter 55/45</code> · <code>convert image to pdf 38/23</code> ·
+      <code>heic to jpg 28/15</code> · <code>image size 45/55</code> — “winnable mid-tail, no whale.” <em>(Live Astro has since corrected the popularity figures — see §2; the winnable read still holds, the anchor term changes.)</em>
+    </div>
+
+    <h3>Origin &amp; why it was revived</h3>
+    <p>An earlier run killed this on <em>differentiation</em> — “HEIC is Sherlocked by Files + Shortcuts, and conversion
+    is one-shot churn.” Under the <strong>Execution Pivot</strong>, neither is a kill: native overlap and single-use are
+    normal for paid utilities. What matters is that the category <em>demonstrably pays</em> (multiple freemium apps with
+    9k–17k reviews) and the search results are <em>mixed and beatable</em> — the top app sits at ~17k reviews, with
+    <strong>no mega-brand anywhere on the shelf</strong>. This is also the <strong>seed of a reusable file/media engine</strong>
+    (on-device conversion + one-screen UX) that powers planned siblings (SizeFit, UnzipX).</p>
+
+    <!-- ===== 2. MARKET ANALYSIS ===== -->
+    <h2>2. Market Analysis</h2>
+    <h3>Direct competitors — real numbers (US App Store, June 2026)</h3>
+    <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>App (developer)</th><th>Rating · reviews</th><th>Model / price</th><th>Key strength</th><th>Key weakness</th></tr></thead>
+      <tbody>
+        <tr><td><strong>The Image Converter</strong> (Float Tech)</td><td>4.6★ · ~17k</td><td>Freemium · $2.99–4.99/mo, $9.99–12.99 lifetime</td><td>Huge format matrix; category anchor</td><td><strong>Cloud upload by default</strong> (privacy); 14 mo stale (Apr ’25)</td></tr>
+        <tr><td><strong>JPEG-PNG Converter</strong> (handyCloset)</td><td>4.7★ · ~17k</td><td>Free, <strong>ad-supported</strong> (no IAP)</td><td>Lean 7.9 MB; on-device; co-leader on volume</td><td><strong>Ads</strong> + cross-app tracking; output <strong>only JPEG/PNG</strong> (no PDF/RAW/WebP)</td></tr>
+        <tr><td><strong>Image Converter: JPEG PDF HEIC</strong> (Fitness Labs)</td><td>4.7★ · ~9k</td><td>Freemium · <strong>$9.99/yr</strong> clean price</td><td>Actively maintained; 14 formats; PDF</td><td><strong>Cloud/server-based</strong>; reviewers cite upload/privacy</td></tr>
+        <tr><td><strong>HEIC to JPEG</strong> (Spicy Apps)</td><td>4.3★ · ~1.5k</td><td>Freemium · weekly $1.99 / yr $7.99</td><td>Cheap yearly</td><td>Free tier = <strong>one photo at a time</strong>; weekly-billing trap; HEIC-only; no “select all”</td></tr>
+        <tr><td><strong>JPG Image Converter</strong> (ZipoApps)</td><td>4.5★ · ~0.5k</td><td>Freemium · wk $2.99 / lifetime $29.99 · ads</td><td>Broad format list</td><td><strong>Bloated 173 MB</strong>; batch is <strong>premium-only</strong>; ads</td></tr>
+        <tr><td><strong>JPG Converter: HEIC, PDF, RAW</strong> (D. Mashkin)</td><td>4.4★ · ~7</td><td>Freemium · wk $1.99 / yr $14.99</td><td><strong>100% on-device + RAW</strong> — closest to our concept</td><td>Tiny / no traction / no marketing muscle — the gap we fill</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>The shelf has no whale — it’s beatable</h3>
+    <p class="small muted">Review counts (Apple’s rounded display) vs. the ~50k+ “brand-wall” threshold that would signal an unwinnable SERP. Nobody is close.</p>
+    <svg viewBox="0 0 680 250" width="100%" role="img" aria-label="Competitor review-count chart showing no app exceeds ~17k reviews against a 50k brand-wall threshold" style="margin:4px 0 18px">
+      <!-- axis baseline: 0 at x=170, 50k at x=650 → scale 9.6px per 1k -->
+      <g font-family="-apple-system,Segoe UI,Roboto,sans-serif" font-size="12.5">
+        <!-- bars -->
+        <g>
+          <text x="162" y="30" text-anchor="end" fill="#1b2330" font-weight="600">The Image Converter</text>
+          <rect x="170" y="19" width="163" height="16" rx="3" fill="#0f8f87"></rect>
+          <text x="340" y="30" fill="#5b6676">17k</text>
+        </g>
+        <g>
+          <text x="162" y="58" text-anchor="end" fill="#1b2330" font-weight="600">JPEG-PNG (handyCloset)</text>
+          <rect x="170" y="47" width="163" height="16" rx="3" fill="#0f8f87"></rect>
+          <text x="340" y="58" fill="#5b6676">17k</text>
+        </g>
+        <g>
+          <text x="162" y="86" text-anchor="end" fill="#1b2330" font-weight="600">JPEG PDF HEIC (Fitness)</text>
+          <rect x="170" y="75" width="86" height="16" rx="3" fill="#0f8f87"></rect>
+          <text x="263" y="86" fill="#5b6676">9k</text>
+        </g>
+        <g>
+          <text x="162" y="114" text-anchor="end" fill="#1b2330" font-weight="600">HEIC to JPEG (Spicy)</text>
+          <rect x="170" y="103" width="14" height="16" rx="3" fill="#8a94a3"></rect>
+          <text x="191" y="114" fill="#5b6676">1.5k</text>
+        </g>
+        <g>
+          <text x="162" y="142" text-anchor="end" fill="#1b2330" font-weight="600">JPG Converter (ZipoApps)</text>
+          <rect x="170" y="131" width="6" height="16" rx="3" fill="#8a94a3"></rect>
+          <text x="183" y="142" fill="#5b6676">0.5k</text>
+        </g>
+        <!-- whale threshold line at 50k → x = 170 + 50*9.6 = 650 -->
+        <line x1="650" y1="10" x2="650" y2="170" stroke="#e2603b" stroke-width="2" stroke-dasharray="5 4"></line>
+        <text x="646" y="190" text-anchor="end" fill="#e2603b" font-weight="700">≈ 50k+ = brand wall</text>
+        <text x="646" y="206" text-anchor="end" fill="#8a94a3">no app on this shelf reaches it</text>
+        <!-- baseline -->
+        <line x1="170" y1="170" x2="650" y2="170" stroke="#e7eaef" stroke-width="1"></line>
+      </g>
+    </svg>
+
+    <h3>Indirect competitor — the free native path (the “Sherlock” question, answered honestly)</h3>
+    <p>The real substitute isn’t another app — it’s <strong>Apple Files + the Shortcuts “Convert Image” action</strong>,
+    which converts HEIC→JPG and even batches via “Select Multiple,” for free. We must respect that. But it has hard limits
+    that a paid app legitimately wins:</p>
+    <div class="two-col">
+      <div class="callout warn"><span class="lbl">What the native path does free</span>
+        HEIC→JPG / PNG · basic batch via a hand-built Shortcut · preserve-metadata toggle · save to Photos/Files.</div>
+      <div class="callout win"><span class="lbl">What it can’t do easily — our wedge</span>
+        RAW (DNG/CR2/NEF/ARW) · WebP · image→<em>multi-page</em> PDF · <strong>resize to a target file size</strong> (“under 2 MB for this form”) ·
+        <strong>strip</strong> EXIF/GPS · <strong>one-tap, zero-setup</strong> batch · and being <em>discoverable at all</em> — most users never find the Shortcut.</div>
+    </div>
+
+    <h3>Keyword cluster &amp; trend</h3>
+    <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Keyword</th><th>Popularity</th><th>Difficulty</th><th>Read</th></tr></thead>
+      <tbody>
+        <tr><td>convert image to pdf</td><td>38</td><td>23</td><td>★ <strong>Best ratio in the set — the ASO anchor</strong></td></tr>
+        <tr><td>jpg to pdf</td><td>57</td><td>43</td><td>High volume, still winnable — PDF cluster</td></tr>
+        <tr><td>pdf photos</td><td>49</td><td>48</td><td>On the edge of winnable; high upside</td></tr>
+        <tr><td>pictures to pdf</td><td>36</td><td>46</td><td>PDF long-tail</td></tr>
+        <tr><td>photo compressor</td><td>32</td><td>39</td><td>Best compress/resize term</td></tr>
+        <tr><td>heic converter</td><td>22</td><td>23</td><td>Best HEIC term — brand-aligned, low difficulty</td></tr>
+        <tr><td>convert heic</td><td>16</td><td>21</td><td>Near-zero difficulty; pairs with the brand</td></tr>
+        <tr><td>image converter</td><td>7</td><td>45</td><td>⚠ Seed claimed 55 — <strong>real pop is 7</strong>; low value</td></tr>
+        <tr><td>heic to jpg</td><td>6</td><td>42</td><td>⚠ Seed claimed 28/15 — real is <strong>6/42</strong></td></tr>
+        <tr><td>metadata remover · exif stripper</td><td>5–6</td><td>21</td><td><strong>Zero competition</strong> — our EXIF/GPS-strip lane</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p><strong>Live-Astro takeaway (US):</strong> the seed over-stated the head term — “image converter” is only popularity <strong>7</strong>, and “heic to jpg” is <strong>6/42</strong>. The real opportunity is the <strong>PDF conversion cluster</strong> (“convert image to pdf” 38/23, “jpg to pdf” 57/43) — high volume, winnable difficulty — plus brand-aligned HEIC terms (“heic converter” 22/23) and the zero-competition EXIF terms. <strong>The ASO anchor shifts from “image converter” to “convert image to pdf.”</strong></p>
+    <p>Trend: <strong>structurally stable and recurring.</strong> Every iPhone shoots HEIC by default; the friction
+    re-appears each time a user sends to Android, uploads to a web form, attaches to a job/gov application, or
+    hits a size cap. Apple has not closed the gap (Files/Shortcuts is power-user-only and unmarketed). No platform
+    change threatens the category in the next 12 months.</p>
+
+    <!-- ===== 3. COMPETITOR TEARDOWN ===== -->
+    <h2>3. Competitor Teardown → how we beat each one</h2>
+    <p>Mined from 1–3★ reviews and listing data. The pattern across the shelf is consistent: the apps that
+    <em>rank</em> are <strong>cloud-based or ad-supported</strong>, and the apps that are <strong>private/on-device</strong>
+    have no traction. That split <em>is</em> the opening.</p>
+
+    <h3>Recurring 1–3★ complaint themes</h3>
+    <ul>
+      <li><strong>“It uploaded my photos somewhere.”</strong> (very common at the top) — the two ~17k leaders and the #3 app are cloud/ad-tracking; privacy reviewers churn.</li>
+      <li><strong>“Ads on a 5-second task.”</strong> (very common) — free leaders monetize with ads/interstitials that interrupt a trivial job.</li>
+      <li><strong>“Wants a weekly subscription to convert one photo.”</strong> (common) — weekly-only billing ($1.99–5.99/wk = $100–300/yr) behind a one-photo free limit; reads as predatory.</li>
+      <li><strong>“No select-all / batch is broken or paywalled.”</strong> (common) — Spicy = one photo free; ZipoApps batch = premium; Monowar batch buggy &gt;26 photos.</li>
+      <li><strong>“Feels abandoned.”</strong> (occasional) — top app stale 14 months; others last updated 2024 / 2020.</li>
+    </ul>
+
+    <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Incumbent (weakness)</th><th>Our ASO angle</th><th>Our UX / speed angle</th><th>The ONE concrete improvement</th></tr></thead>
+      <tbody>
+        <tr><td><strong>The Image Converter</strong><br><span class="small muted">cloud upload; 14-mo stale</span></td><td>Own “private / offline / on-device” in subtitle + freshness signal</td><td>One clean screen vs. a sprawling format-matrix maze</td><td><strong>100% on-device</strong> — photos never leave the phone (badge it on screenshot #1)</td></tr>
+        <tr><td><strong>JPEG-PNG (handyCloset)</strong><br><span class="small muted">ads; JPEG/PNG output only</span></td><td>Rank for <code>convert image to pdf</code>, <code>webp</code>, <code>raw</code> — terms they literally can’t serve</td><td>No ad ever interrupts the convert tap</td><td><strong>No ads + PDF / RAW / WebP output</strong> they don’t have</td></tr>
+        <tr><td><strong>JPEG PDF HEIC (Fitness Labs)</strong><br><span class="small muted">cloud; $9.99/yr</span></td><td>Match their $9.99/yr but lead with “on-device · no weekly trap”</td><td>No upload round-trip → instant, works on a plane</td><td><strong>Same price, but private + a free tier + own-it-forever option</strong></td></tr>
+        <tr><td><strong>HEIC to JPEG (Spicy)</strong><br><span class="small muted">1 photo free; weekly trap</span></td><td>Own broader terms (png to jpg, image size, pdf) vs. HEIC-only</td><td>Real batch + select-all by default</td><td><strong>Generous free batch (daily cap), no weekly billing</strong></td></tr>
+        <tr><td><strong>JPG Converter (ZipoApps)</strong><br><span class="small muted">173 MB; batch paywalled</span></td><td>“fast · lightweight” positioning</td><td>&lt;15 MB app, instant launch, batch in free tier</td><td><strong>Tiny &amp; fast, with batch users don’t have to pay for</strong></td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="callout win"><span class="lbl">The thesis in one line</span>
+      <strong>Be the converter that’s honest:</strong> on-device (private), no ads, no weekly trap, generous free batch,
+      and the formats Files/Shortcuts can’t do — then out-ASO the cloud incumbents on the terms they can’t rank for.</div>
+
+    <!-- ===== 4. TARGET AUDIENCE ===== -->
+    <h2>4. Target Audience</h2>
+    <h3>Primary persona — “Blocked Sender” (Strategist’s pick)</h3>
+    <p>An everyday iPhone owner who just hit a wall: a website/employer won’t accept their <code>.HEIC</code>, an Android
+    friend can’t open the photo, or an upload form rejects a 6 MB image. <strong>Who:</strong> 20–55, non-technical,
+    doesn’t know Shortcuts exists. <strong>Pain:</strong> “I just need a normal JPG / a smaller file / a PDF, right now.”
+    <strong>Current solution:</strong> a sketchy free converter full of ads, or a random website they upload private
+    photos to. <strong>Willingness to pay:</strong> low individually but enormous in aggregate — proven by 17k-review
+    incumbents; will happily pay a near-impulse price to make the annoyance disappear ad-free.</p>
+    <p>This persona is chosen over “pro/RAW photographer” because it maps to the <em>highest-volume head keywords</em>
+    (image converter, heic to jpg, convert image to pdf, image size) and is exactly who the incumbents serve badly.
+    The pro/RAW user is the <strong>secondary</strong> persona — they supply the <em>recurring-use</em> revenue that a
+    pure single-use audience wouldn’t.</p>
+    <h3>Jobs to be done</h3>
+    <ul>
+      <li>“When a site rejects my iPhone photo, I want a normal JPG instantly, so I can finish the upload.”</li>
+      <li>“When a form caps file size, I want to shrink a photo to under 2 MB, without guessing.”</li>
+      <li>“When I apply for something, I want to turn 5 photos into one PDF, so I can attach it.”</li>
+      <li>“When I send to Android/Windows, I want a batch of HEICs as JPGs in one tap, without uploading them anywhere.”</li>
+    </ul>
+
+    <!-- ===== 5. MONETIZATION ===== -->
+    <h2>5. Monetization Analysis</h2>
+    <h3>Recommended model — Freemium + daily cap, hybrid sub &amp; lifetime</h3>
+    <p>The category’s honest objection (the Critic’s flag) is real: a <em>purely</em> single-use converter churns after
+    one batch and won’t sustain subscription MRR. We neutralize it with a <strong>hybrid</strong> that doesn’t bet on
+    recurring billing alone:</p>
+    <ul>
+      <li><strong>Free tier:</strong> up to <strong>~10 conversions/day</strong> (JPG/PNG/HEIC), watermark-free, no ads. Casual “send 3 photos” users stay happy and free → reviews + word of mouth.</li>
+      <li><strong>Pro — $9.99/yr</strong> (hero/default; matches the cleanest ~9k-review incumbent, ~$0.83/mo) or <strong>$1.99/wk</strong> (secondary, transparent impulse — cancel anytime): unlimited conversions, unlimited batch, RAW, WebP, multi-page PDF, resize-to-target, EXIF strip.</li>
+      <li><strong>Lifetime unlock — $19.99 one-time:</strong> the churn-proof tier, priced ~2× the annual so the annual stays the obvious entry (a $9.99 lifetime would cannibalize the sub entirely). The single-use user who’d cancel a sub <em>pays once and we keep them</em>; it also captures the documented “I refuse to subscribe to a utility” segment.</li>
+    </ul>
+    <h3>Price benchmarking</h3>
+    <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Model</th><th>Category range</th><th>HeicSwap</th><th>Rationale</th></tr></thead>
+      <tbody>
+        <tr><td>Weekly</td><td>$1.99–5.99/wk</td><td>$1.99/wk</td><td>Bottom of the cluster, kept <em>secondary</em> &amp; transparent so it never becomes the trap we’re beating</td></tr>
+        <tr><td>Yearly</td><td>$7.99–29.99 (fair $9.99–19.99)</td><td><strong>$9.99/yr · hero</strong></td><td>The fair-cluster floor; a ~9k-review app sustains it. ~$0.83/mo — “fair, not cheap”</td></tr>
+        <tr><td>Lifetime / one-time</td><td>$9.99–29.99 ($0.99 outliers)</td><td><strong>$19.99</strong></td><td>Kills single-use churn; ~2× annual so it doesn’t cannibalize the sub</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="callout"><span class="lbl">Trial</span> No separate timed trial at launch — the <strong>daily free cap is the trial.</strong>
+      Users feel the product, hit the cap on a real batch, and upgrade at the moment of need. Revisit a 3-day annual trial only if RevenueCat shows it lifts conversion.</div>
+
+    <!-- ===== 6. OPPORTUNITY SCORE ===== -->
+    <h2>6. Opportunity Score — Execution Pivot</h2>
+    <div class="scores">
+      <div class="score"><div class="n">8<small>/10</small></div><div class="k">Demand</div></div>
+      <div class="score"><div class="n">7<small>/10</small></div><div class="k">Monetization</div></div>
+      <div class="score"><div class="n">8<small>/10</small></div><div class="k">Winnability</div></div>
+      <div class="score"><div class="n">8<small>/10</small></div><div class="k">Execution edge</div></div>
+      <div class="score"><div class="n">9<small>/10</small></div><div class="k">Feasibility</div></div>
+      <div class="score"><div class="n">8<small>/10</small></div><div class="k">Risk (low=good)</div></div>
+    </div>
+    <p style="text-align:center; margin:0 0 20px"><span class="total">8.0</span> <span class="muted">/ 10 average</span></p>
+    <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Dimension</th><th>Score</th><th>Rationale</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Demand</strong> (winnable mid-tail)</td><td>8</td><td>High-volume head (“image converter” 55) + a low-difficulty entry wedge (“heic to jpg” diff 15); 17k-review incumbents prove the install volume.</td></tr>
+        <tr><td><strong>Monetization</strong> (pays + WTP)</td><td>7</td><td>Category demonstrably pays ($9.99/yr sustains a 9k-review app), but single-use skew caps recurring MRR — offset by the lifetime tier + install volume, not solved.</td></tr>
+        <tr><td><strong>Winnability</strong> (beatable SERP)</td><td>8</td><td>No whale; top is a ~17k duopoly that’s stale/cloud/ad-ridden. 9 if not for handyCloset’s free-with-no-privacy-cost option.</td></tr>
+        <tr><td><strong>Execution edge</strong></td><td>8</td><td>Four concrete, ownable angles: on-device privacy · no ads · honest non-weekly pricing · formats + zero-setup batch the native path lacks.</td></tr>
+        <tr><td><strong>Solo-dev feasibility</strong> (≤6 wks)</td><td>9</td><td>Pure on-device ImageIO / Core Image build; no backend; 4–6 week “deep” scope (RAW, multi-page PDF, share extension) is comfortable.</td></tr>
+        <tr><td><strong>Risk</strong> (EU/MDR/Apple)</td><td>8</td><td>No EU/medical/GDPR drag; on-device = no data liability. Residual risk: Apple scrutiny of “another converter,” and the churn assumption.</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <!-- ===== 7. ASO ===== -->
+    <h2>7. ASO Opportunity</h2>
+    <h3>Suggested app name (live-Astro driven)</h3>
+    <ol>
+      <li><strong>“HeicSwap: Image Converter”</strong> (25 char) — brand + the recognizable category label; indexes heic, image, converter. <span class="muted small">Recommended.</span></li>
+      <li><strong>“HeicSwap: Photo to PDF Converter”</strong> — if we want the high-value PDF term in the name field itself (highest ASO weight).</li>
+    </ol>
+    <div class="callout risk"><span class="lbl">Strategist flag — now confirmed by the data</span>
+      “image converter” is only popularity <strong>7</strong>, so the name shouldn’t over-invest in it. Let the
+      <strong>name carry the brand + “converter,”</strong> and the <strong>subtitle claim the high-volume PDF/compress territory</strong> the name doesn’t cover. Anchor the whole listing on the <strong>PDF cluster</strong>, not “image converter.”</div>
+    <p><strong>Subtitle (≤30 char):</strong> “PDF, Resize &amp; Compress Photos” (indexes pdf, resize, compress, photos). <strong>Category:</strong> Primary <em>Photo &amp; Video</em>, Secondary <em>Utilities</em>.
+    <br><strong>Keyword field (73/100):</strong> <code>jpg,png,convert,pictures,compressor,metadata,remover,batch,size,maker,photos,shrink</code>
+    <br><strong>Best entry terms:</strong> convert image to pdf (38/23) · jpg to pdf (57/43) · heic converter (22/23) · convert heic (16/21) · photo compressor (32/39) · zero-competition EXIF terms (diff 21).</p>
+
+    <!-- ===== 8. RECOMMENDATION ===== -->
+    <h2>8. Recommendation</h2>
+    <p style="font-size:18px"><span class="pill build">VERDICT — BUILD</span></p>
+    <p>This is a clean Execution-Pivot win and a strong portfolio opener. The demand is real and recurring, the shelf
+    has <strong>no brand wall</strong>, and the ranking incumbents share two exploitable flaws — they’re either
+    <strong>cloud-based</strong> (a privacy liability) or <strong>ad-supported</strong> (a UX liability) — while the
+    private/on-device alternatives have no marketing behind them. We can be the first <em>well-executed, well-marketed,
+    on-device</em> converter on the shelf.</p>
+    <p>The one honest risk is the single-use-churn ceiling on subscription MRR. We don’t pretend it away — we design
+    around it with a <strong>lifetime unlock + install-volume model</strong>, and we treat any recurring-use revenue
+    (RAW/PDF workflows) as upside. What would flip this to PASS: a sudden iOS feature that surfaces conversion
+    natively to mainstream users, or the head keywords being captured by a true mega-brand. Neither is present today.</p>
+
+    <h3>If BUILD — key success factors</h3>
+    <ol>
+      <li><strong>On-device is the headline, not a footnote.</strong> Screenshot #1 and the subtitle must say “private / never uploaded.” It’s the single most ownable wedge against the two leaders.</li>
+      <li><strong>Free has to feel generous.</strong> The daily cap is the funnel <em>and</em> the review engine — too stingy and we become the “one photo free” app we’re beating.</li>
+      <li><strong>Win the long tail of formats.</strong> PDF, WebP, RAW, resize-to-size are both the keyword moat and the recurring-use hook the native path can’t match.</li>
+      <li><strong>Speed is a feature.</strong> Instant launch, instant batch, &lt;15 MB — explicitly counter the 173 MB bloated incumbent.</li>
+    </ol>
+
+    <h3>Next steps for the Product Manager</h3>
+    <ul>
+      <li>Scope MVP to the 4–6 week “deep” build: HEIC/PNG/JPG/WebP/RAW ⇄ JPG, multi-page image→PDF, resize-to-target, EXIF strip, one-tap batch, a Share-sheet extension, and the freemium daily-cap paywall.</li>
+      <li>Define the exact free daily cap (start ~10/day) and the three IAP SKUs ($9.99/yr hero · $1.99/wk · $19.99 lifetime) as RevenueCat products.</li>
+      <li>Write the paywall trigger spec (fires when the user hits the cap or taps a Pro-only format) and the analytics funnel.</li>
+      <li>Lock App Store metadata around “Image Converter — HeicSwap” + the keyword field above; plan a 5-screenshot story leading with privacy + batch.</li>
+    </ul>
+
+  </article>
+</main>
+<footer>Generated by ios-product-team · Discovery · self-contained HTML · open in any browser or print to PDF. Review counts are Apple’s rounded public displays (June 2026); exact integers require a paid intelligence subscription.</footer>
+</body>
+</html>
