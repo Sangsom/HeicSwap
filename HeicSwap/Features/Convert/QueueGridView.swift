@@ -18,6 +18,11 @@ struct QueueGridView: View {
 
     let items: [SourceItem]
     @Binding var isExpanded: Bool
+    /// True while a batch conversion is running — dims every not-yet-finished thumbnail and hides
+    /// the remove controls (you can't edit the queue mid-convert).
+    var isConverting: Bool = false
+    /// Ids of items that have finished this run; their thumbnails render fully "developed".
+    var developedItemIDs: Set<SourceItem.ID> = []
     let onRemove: (SourceItem.ID) -> Void
 
     /// Longest-edge pixel size requested from `ThumbnailCache` — ~100pt cells at 3× scale.
@@ -36,7 +41,14 @@ struct QueueGridView: View {
 
         LazyVGrid(columns: columns, spacing: Theme.Spacing.small) {
             ForEach(Array(visibleItems.enumerated()), id: \.element.id) { index, item in
-                QueueCell(item: item, position: index + 1, total: items.count) {
+                QueueCell(
+                    item: item,
+                    position: index + 1,
+                    total: items.count,
+                    // Developed when nothing is converting, or once this item has finished.
+                    isDeveloped: !isConverting || developedItemIDs.contains(item.id),
+                    isConverting: isConverting
+                ) {
                     onRemove(item.id)
                 }
             }
@@ -67,25 +79,46 @@ private struct QueueCell: View {
     /// 1-based position, for the VoiceOver label.
     let position: Int
     let total: Int
+    /// Whether this item's thumbnail shows in full color (`true`) or in the dimmed "undeveloped"
+    /// state it animates out of as it finishes converting (task 5.3).
+    var isDeveloped: Bool = true
+    /// True while a batch conversion is running — hides the remove affordances.
+    var isConverting: Bool = false
     let onRemove: () -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
+        let reveal = DevelopReveal.style(isDeveloped: isDeveloped, reduceMotion: reduceMotion)
+
         // A flexible square sized to the grid column; the image fills it as a clipped overlay so
         // every cell is a uniform rounded square regardless of the source's aspect ratio.
         Color.clear
             .aspectRatio(1, contentMode: .fit)
-            .overlay { thumbnail }
+            .overlay {
+                thumbnail
+                    .saturation(reveal.saturation)
+                    .brightness(reveal.brightness)
+                    .opacity(reveal.opacity)
+                    .animation(.easeIn(duration: DevelopReveal.duration), value: isDeveloped)
+            }
             .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.thumbnail))
-            .overlay(alignment: .topTrailing) { removeButton }
+            .overlay(alignment: .topTrailing) {
+                if !isConverting { removeButton }
+            }
             .contextMenu {
-                Button(role: .destructive, action: onRemove) {
-                    Label("Remove", systemImage: "trash")
+                if !isConverting {
+                    Button(role: .destructive, action: onRemove) {
+                        Label("Remove", systemImage: "trash")
+                    }
                 }
             }
             // One VoiceOver element per cell with a Remove action; the small ✕ is a touch affordance.
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(Text(String(localized: "Photo \(position) of \(total)")))
-            .accessibilityAction(named: Text(String(localized: "Remove"))) { onRemove() }
+            .accessibilityAction(named: Text(String(localized: "Remove"))) {
+                if !isConverting { onRemove() }
+            }
     }
 
     @ViewBuilder private var thumbnail: some View {

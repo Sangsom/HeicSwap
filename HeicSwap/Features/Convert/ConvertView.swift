@@ -59,8 +59,10 @@ struct ConvertView: View {
         if !viewModel.isEmpty {
             ToolbarItemGroup(placement: .bottomBar) {
                 PhotosImportButton(onPick: addPhotos)
+                    .disabled(viewModel.isConverting)
                 Spacer()
                 FilesImportButton(onPick: addFiles)
+                    .disabled(viewModel.isConverting)
                 Spacer()
                 Button(role: .destructive) {
                     withAnimation(.snappy) {
@@ -70,6 +72,7 @@ struct ConvertView: View {
                 } label: {
                     Label("Clear All", systemImage: "trash")
                 }
+                .disabled(viewModel.isConverting)
             }
         }
     }
@@ -124,13 +127,21 @@ private struct ConvertQueueContent: View {
                     ImportingBanner()
                 }
 
-                QueueGridView(items: viewModel.items, isExpanded: $isGridExpanded) { id in
+                QueueGridView(
+                    items: viewModel.items,
+                    isExpanded: $isGridExpanded,
+                    isConverting: viewModel.isConverting,
+                    developedItemIDs: viewModel.developedItemIDs
+                ) { id in
                     viewModel.remove(id)
                 }
 
                 OptionsSummaryRow(options: viewModel.options) {
                     isOptionsPresented = true
                 }
+                .disabled(viewModel.isConverting)
+
+                ConvertActionSection(viewModel: viewModel, onConvert: startConvert)
 
                 if !viewModel.skipped.isEmpty {
                     SkippedBanner(onDismiss: viewModel.clearSkipped)
@@ -143,6 +154,146 @@ private struct ConvertQueueContent: View {
         .sheet(isPresented: $isOptionsPresented) {
             ConversionOptionsSheet(options: $viewModel.options, entitlement: viewModel.entitlement)
         }
+    }
+
+    /// Expands the grid so every thumbnail is on screen to "develop", then starts the run.
+    private func startConvert() {
+        withAnimation(.snappy) { isGridExpanded = true }
+        viewModel.convert()
+    }
+}
+
+// MARK: - Convert action
+
+/// The primary Convert action below the options row: the CTA when idle, a live progress bar with
+/// Cancel while converting, and a completion banner (plus a re-convert CTA) when finished (task 5.3).
+private struct ConvertActionSection: View {
+    @Bindable var viewModel: ConvertViewModel
+    let onConvert: () -> Void
+
+    var body: some View {
+        switch viewModel.phase {
+        case .idle:
+            convertButton
+        case .converting:
+            ConvertingProgress(
+                converted: viewModel.convertedCount,
+                total: viewModel.conversionTotal,
+                onCancel: viewModel.cancelConversion
+            )
+        case let .finished(successCount, failureCount):
+            VStack(spacing: Theme.Spacing.item) {
+                ConvertedBanner(successCount: successCount, failureCount: failureCount)
+                convertButton
+            }
+        }
+    }
+
+    @ViewBuilder private var convertButton: some View {
+        if !viewModel.items.isEmpty {
+            ConvertButton(
+                count: viewModel.items.count,
+                format: viewModel.options.format,
+                action: onConvert
+            )
+        }
+    }
+}
+
+/// The amber "Convert" CTA — dark ink on safelight amber, full-width capsule.
+private struct ConvertButton: View {
+    let count: Int
+    let format: OutputFormat
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(Theme.Typography.headline)
+                .foregroundStyle(Theme.Colors.onAccent)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, Theme.Spacing.item)
+                .background(Theme.Colors.accent, in: Capsule())
+        }
+        .accessibilityLabel(Text(title))
+    }
+
+    private var title: String {
+        if format == .pdf {
+            return count == 1
+                ? String(localized: "Make a PDF")
+                : String(localized: "Combine \(count) into a PDF")
+        }
+        return count == 1
+            ? String(localized: "Convert 1 photo")
+            : String(localized: "Convert \(count) photos")
+    }
+}
+
+/// The live "developing" state: how many of how many have finished, a determinate bar, and Cancel.
+private struct ConvertingProgress: View {
+    let converted: Int
+    let total: Int
+    let onCancel: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.small) {
+            HStack {
+                Text("Developing… \(converted) of \(total)")
+                    .font(Theme.Typography.headline)
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                Spacer()
+                Button(role: .cancel, action: onCancel) {
+                    Text("Cancel")
+                }
+                .font(Theme.Typography.callout)
+                .foregroundStyle(Theme.Colors.accent)
+            }
+            ProgressView(value: Double(converted), total: Double(max(total, 1)))
+                .tint(Theme.Colors.accent)
+        }
+        .padding(Theme.Spacing.item)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            RoundedRectangle(cornerRadius: Theme.Radius.input)
+                .fill(Theme.Colors.surface)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text(String(localized: "Converting")))
+        .accessibilityValue(Text(String(localized: "\(converted) of \(total) done")))
+    }
+}
+
+/// Completion confirmation after a run finishes (the full results sheet is task 5.4).
+private struct ConvertedBanner: View {
+    let successCount: Int
+    let failureCount: Int
+
+    var body: some View {
+        HStack(spacing: Theme.Spacing.item) {
+            Image(systemName: "checkmark.seal.fill")
+                .foregroundStyle(Theme.Colors.success)
+            Text(message)
+                .font(Theme.Typography.subheadline)
+                .foregroundStyle(Theme.Colors.textPrimary)
+            Spacer()
+        }
+        .padding(Theme.Spacing.item)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            RoundedRectangle(cornerRadius: Theme.Radius.input)
+                .fill(Theme.Colors.surface)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var message: String {
+        if failureCount > 0 {
+            return String(localized: "Converted \(successCount), \(failureCount) couldn't be converted")
+        }
+        return successCount == 1
+            ? String(localized: "Converted 1 photo")
+            : String(localized: "Converted \(successCount) photos")
     }
 }
 
@@ -343,4 +494,18 @@ private struct SkippedBanner: View {
     ConvertEmptyState(onAddPhotos: { _ in }, onAddFiles: { _ in })
         .background(Theme.Colors.background)
         .preferredColorScheme(.dark)
+}
+
+// The three Convert action states (task 5.3), stacked for a quick Light/Dark + Dynamic Type check.
+#Preview("Convert action states") {
+    VStack(spacing: Theme.Spacing.sectionGap) {
+        ConvertButton(count: 12, format: .jpg, action: {})
+        ConvertButton(count: 8, format: .pdf, action: {})
+        ConvertingProgress(converted: 7, total: 12, onCancel: {})
+        ConvertedBanner(successCount: 12, failureCount: 0)
+        ConvertedBanner(successCount: 10, failureCount: 2)
+    }
+    .padding(Theme.Spacing.section)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .background(Theme.Colors.background)
 }
