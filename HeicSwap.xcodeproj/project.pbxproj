@@ -392,6 +392,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "HeicSwap saves your converted photos here. It only adds photos to your library — it never reads or uploads them.";
 				INFOPLIST_KEY_REVENUECAT_API_KEY = "$(REVENUECAT_API_KEY)";
 				INFOPLIST_KEY_TELEMETRYDECK_APP_ID = "$(TELEMETRYDECK_APP_ID)";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -441,6 +442,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "HeicSwap saves your converted photos here. It only adds photos to your library — it never reads or uploads them.";
 				INFOPLIST_KEY_REVENUECAT_API_KEY = "$(REVENUECAT_API_KEY)";
 				INFOPLIST_KEY_TELEMETRYDECK_APP_ID = "$(TELEMETRYDECK_APP_ID)";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;

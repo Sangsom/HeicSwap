@@ -109,6 +109,40 @@ struct ConvertViewModelTests {
         #expect(FileManager.default.fileExists(atPath: pdf.path))
     }
 
+    @Test("AC1 (5.4): each output carries its before/after size for the Results sheet")
+    func resultsCarrySizes() async throws {
+        let workspace = try Workspace()
+        let viewModel = try await makeViewModelWithQueue(3, in: workspace)
+        viewModel.options.format = .jpg
+
+        viewModel.convert()
+        await viewModel.conversionTask?.value
+
+        #expect(viewModel.lastResults.count == 3)
+        #expect(viewModel.lastResults.map(\.outputURL) == viewModel.lastOutputs)
+        for result in viewModel.lastResults {
+            #expect(result.originalBytes > 0)
+            #expect(result.outputBytes > 0)
+            #expect(result.isPDF == false)
+        }
+    }
+
+    @Test("The .pdf result sums its inputs as the original size")
+    func pdfResultSumsInputs() async throws {
+        let workspace = try Workspace()
+        let viewModel = try await makeViewModelWithQueue(4, in: workspace)
+        viewModel.options.format = .pdf
+
+        viewModel.convert()
+        await viewModel.conversionTask?.value
+
+        let result = try #require(viewModel.lastResults.first)
+        #expect(viewModel.lastResults.count == 1)
+        #expect(result.isPDF)
+        #expect(result.outputBytes > 0)
+        #expect(result.originalBytes > 0)
+    }
+
     @Test("Convert is a no-op with an empty queue")
     func emptyQueueIsNoOp() async throws {
         let workspace = try Workspace()

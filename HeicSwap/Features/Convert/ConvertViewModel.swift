@@ -50,9 +50,13 @@ final class ConvertViewModel {
     /// Reset at the start of each run; only consulted while `phase == .converting`.
     private(set) var developedItemIDs: Set<SourceItem.ID> = []
 
-    /// Output files produced by the most recent run, kept for the results sheet (task 5.4) and so a
-    /// cancelled run's already-converted outputs are retained ("converted ones kept", AC3).
-    private(set) var lastOutputs: [URL] = []
+    /// Outputs produced by the most recent run — each with its before/after size — kept for the
+    /// Results sheet (task 5.4) and so a cancelled run's already-converted outputs are retained
+    /// ("converted ones kept", AC3 of 5.3).
+    private(set) var lastResults: [ConversionResult] = []
+
+    /// The output file URLs of the most recent run, in order. Derived from `lastResults`.
+    var lastOutputs: [URL] { lastResults.map(\.outputURL) }
 
     /// Number of items the in-flight run is converting — the progress-bar denominator.
     private(set) var conversionTotal = 0
@@ -124,7 +128,7 @@ final class ConvertViewModel {
         importService.removeAll()
         phase = .idle
         developedItemIDs = []
-        lastOutputs = []
+        lastResults = []
     }
 
     /// Dismisses the skipped-items note.
@@ -155,7 +159,7 @@ final class ConvertViewModel {
         let options = self.options
 
         developedItemIDs = []
-        lastOutputs = []
+        lastResults = []
         conversionTotal = urls.count
         phase = .converting
 
@@ -201,7 +205,11 @@ final class ConvertViewModel {
             switch outcome.result {
             case let .success(output):
                 successCount += 1
-                lastOutputs.append(output)
+                lastResults.append(ConversionResult(
+                    outputURL: output,
+                    originalBytes: Self.byteCount(of: outcome.source),
+                    outputBytes: Self.byteCount(of: output)
+                ))
                 develop(ids, at: outcome.index)
             case .failure(.cancelled):
                 break // stopped, not finished — leaves the thumbnail undeveloped
@@ -234,10 +242,22 @@ final class ConvertViewModel {
         let output = await production
 
         if let output {
-            lastOutputs = [output]
+            // One combined PDF; its "before" is the sum of every input it was assembled from.
+            let originalBytes = urls.reduce(0) { $0 + Self.byteCount(of: $1) }
+            lastResults = [ConversionResult(
+                outputURL: output,
+                originalBytes: originalBytes,
+                outputBytes: Self.byteCount(of: output)
+            )]
         }
         let rendered = developedItemIDs.count
         settle(successCount: rendered, failureCount: urls.count - rendered)
+    }
+
+    /// File size in bytes for `url`, or `0` if it can't be read. A single `stat`-class call —
+    /// cheap enough to run inline as each output lands, so the Results sheet has before/after sizes.
+    private nonisolated static func byteCount(of url: URL) -> Int {
+        (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
     }
 
     /// Marks the item at `index` as developed; the cell animates the thumbnail to full color when

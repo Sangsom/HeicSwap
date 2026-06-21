@@ -117,6 +117,12 @@ private struct ConvertQueueContent: View {
     @Binding var isGridExpanded: Bool
 
     @State private var isOptionsPresented = false
+    @State private var isResultsPresented = false
+
+    /// Items the just-finished run couldn't convert — surfaced in the Results sheet footnote.
+    private var failureCount: Int {
+        if case let .finished(_, failures) = viewModel.phase { failures } else { 0 }
+    }
 
     var body: some View {
         ScrollView {
@@ -141,7 +147,11 @@ private struct ConvertQueueContent: View {
                 }
                 .disabled(viewModel.isConverting)
 
-                ConvertActionSection(viewModel: viewModel, onConvert: startConvert)
+                ConvertActionSection(
+                    viewModel: viewModel,
+                    onConvert: startConvert,
+                    onShowResults: { isResultsPresented = true }
+                )
 
                 if !viewModel.skipped.isEmpty {
                     SkippedBanner(onDismiss: viewModel.clearSkipped)
@@ -154,12 +164,35 @@ private struct ConvertQueueContent: View {
         .sheet(isPresented: $isOptionsPresented) {
             ConversionOptionsSheet(options: $viewModel.options, entitlement: viewModel.entitlement)
         }
+        .sheet(isPresented: $isResultsPresented) {
+            ResultsSheet(
+                results: viewModel.lastResults,
+                failureCount: failureCount,
+                onConvertMore: convertMore
+            )
+        }
+        // Surface the Results sheet automatically the moment a run finishes with at least one
+        // converted output — "one tap from done" (the tap was Convert).
+        .onChange(of: viewModel.phase) { _, newPhase in
+            if case let .finished(successCount, _) = newPhase,
+               successCount > 0, !viewModel.lastResults.isEmpty {
+                isResultsPresented = true
+            }
+        }
     }
 
     /// Expands the grid so every thumbnail is on screen to "develop", then starts the run.
     private func startConvert() {
         withAnimation(.snappy) { isGridExpanded = true }
         viewModel.convert()
+    }
+
+    /// Clears the finished batch so the screen returns to a fresh, empty queue for the next run.
+    private func convertMore() {
+        withAnimation(.snappy) {
+            viewModel.clearAll()
+            isGridExpanded = false
+        }
     }
 }
 
@@ -170,6 +203,8 @@ private struct ConvertQueueContent: View {
 private struct ConvertActionSection: View {
     @Bindable var viewModel: ConvertViewModel
     let onConvert: () -> Void
+    /// Re-opens the Results sheet (it auto-presents on completion; this is for after a dismiss).
+    let onShowResults: () -> Void
 
     var body: some View {
         switch viewModel.phase {
@@ -183,7 +218,11 @@ private struct ConvertActionSection: View {
             )
         case let .finished(successCount, failureCount):
             VStack(spacing: Theme.Spacing.item) {
-                ConvertedBanner(successCount: successCount, failureCount: failureCount)
+                ConvertedBanner(
+                    successCount: successCount,
+                    failureCount: failureCount,
+                    onTap: successCount > 0 ? onShowResults : nil
+                )
                 convertButton
             }
         }
@@ -264,12 +303,24 @@ private struct ConvertingProgress: View {
     }
 }
 
-/// Completion confirmation after a run finishes (the full results sheet is task 5.4).
+/// Completion confirmation after a run finishes. When `onTap` is set, the whole banner re-opens the
+/// Results sheet (task 5.4) to Save or Share — the sheet also auto-presents the moment a run ends.
 private struct ConvertedBanner: View {
     let successCount: Int
     let failureCount: Int
+    var onTap: (() -> Void)? = nil
 
     var body: some View {
+        if let onTap {
+            Button(action: onTap) { banner }
+                .buttonStyle(.plain)
+                .accessibilityHint(Text(String(localized: "Opens results to save or share")))
+        } else {
+            banner
+        }
+    }
+
+    private var banner: some View {
         HStack(spacing: Theme.Spacing.item) {
             Image(systemName: "checkmark.seal.fill")
                 .foregroundStyle(Theme.Colors.success)
@@ -277,9 +328,14 @@ private struct ConvertedBanner: View {
                 .font(Theme.Typography.subheadline)
                 .foregroundStyle(Theme.Colors.textPrimary)
             Spacer()
+            if onTap != nil {
+                Image(systemName: "square.and.arrow.up")
+                    .foregroundStyle(Theme.Colors.accent)
+            }
         }
         .padding(Theme.Spacing.item)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
         .background {
             RoundedRectangle(cornerRadius: Theme.Radius.input)
                 .fill(Theme.Colors.surface)
