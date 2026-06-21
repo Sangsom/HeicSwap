@@ -20,8 +20,18 @@ final class ConvertViewModel {
 
     private let importService: ImportService
 
-    init(importService: ImportService = ImportService()) {
+    /// The conversion settings the Options sheet (task 5.2) edits and the Convert action (5.3)
+    /// reads. Held here — not in the sheet — so choices persist as session defaults across
+    /// presentations.
+    var options = ConversionOptions()
+
+    /// The user's current entitlement, which gates the advanced options in the sheet (PRD §6).
+    /// Stubbed `.free`; the entitlement client (task 6.1) will drive this from `PurchaseClient`.
+    var entitlement: Entitlement
+
+    init(importService: ImportService = ImportService(), entitlement: Entitlement = .free) {
         self.importService = importService
+        self.entitlement = entitlement
     }
 
     /// Materialized items ready to convert, in import order.

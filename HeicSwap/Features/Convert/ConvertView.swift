@@ -107,10 +107,13 @@ private struct ConvertHeader: View {
 
 // MARK: - Loaded queue
 
-/// The populated state: the thumbnail grid plus any in-flight / skipped import status.
+/// The populated state: the thumbnail grid, the output-options row that presents the sheet, plus
+/// any in-flight / skipped import status.
 private struct ConvertQueueContent: View {
-    let viewModel: ConvertViewModel
+    @Bindable var viewModel: ConvertViewModel
     @Binding var isGridExpanded: Bool
+
+    @State private var isOptionsPresented = false
 
     var body: some View {
         ScrollView {
@@ -125,6 +128,10 @@ private struct ConvertQueueContent: View {
                     viewModel.remove(id)
                 }
 
+                OptionsSummaryRow(options: viewModel.options) {
+                    isOptionsPresented = true
+                }
+
                 if !viewModel.skipped.isEmpty {
                     SkippedBanner(onDismiss: viewModel.clearSkipped)
                 }
@@ -133,6 +140,51 @@ private struct ConvertQueueContent: View {
             .padding(.top, Theme.Spacing.section)
             .padding(.bottom, Theme.Spacing.majorBreak)
         }
+        .sheet(isPresented: $isOptionsPresented) {
+            ConversionOptionsSheet(options: $viewModel.options, entitlement: viewModel.entitlement)
+        }
+    }
+}
+
+// MARK: - Options summary row
+
+/// The tappable "Output" row beneath the grid: a glance at the current conversion settings and the
+/// entry point to the Options sheet (task 5.2).
+private struct OptionsSummaryRow: View {
+    let options: ConversionOptions
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: Theme.Spacing.item) {
+                Image(systemName: "slider.horizontal.3")
+                    .foregroundStyle(Theme.Colors.accent)
+                VStack(alignment: .leading, spacing: Theme.Spacing.tight) {
+                    Text("Output")
+                        .font(Theme.Typography.footnote)
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                    Text(OptionsSummary.text(for: options))
+                        .font(Theme.Typography.headline)
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+            .padding(Theme.Spacing.item)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .background {
+                RoundedRectangle(cornerRadius: Theme.Radius.input)
+                    .fill(Theme.Colors.surface)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(String(localized: "Output options")))
+        .accessibilityValue(Text(OptionsSummary.text(for: options)))
+        .accessibilityHint(Text(String(localized: "Choose format, quality, resize, and metadata")))
     }
 }
 
