@@ -23,7 +23,8 @@ struct HeicSwapApp: App {
 
     var body: some Scene {
         WindowGroup {
-            MainTabView(appState: appState)
+            ConvertView()
+                .environment(appState)
                 .environment(\.analyticsClient, analyticsClient)
                 .environment(\.purchaseService, purchaseService)
                 .task {

@@ -11,8 +11,6 @@ import SwiftUI
 @Observable
 @MainActor
 final class AppState {
-    var selectedTab: MainTab = .home
-
     let analyticsClient: any AnalyticsClient
     let purchaseService: PurchaseService
 
