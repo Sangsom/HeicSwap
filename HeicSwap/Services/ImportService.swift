@@ -180,6 +180,15 @@ final class ImportService {
         skipped.removeAll()
     }
 
+    /// Empties the whole queue — ready items, in-flight rows, and skipped entries — backing the
+    /// queue UI's "clear all" (task 5.1). In-flight `loadTransferable` downloads aren't cancelled,
+    /// so a download that completes after this call still appends its finished item to the queue.
+    func removeAll() {
+        items.removeAll()
+        active.removeAll()
+        skipped.removeAll()
+    }
+
     private func updateProgress(id: UUID, fraction: Double) {
         guard let index = active.firstIndex(where: { $0.id == id }) else { return }
         active[index].fractionCompleted = fraction
