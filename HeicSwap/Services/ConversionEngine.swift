@@ -8,10 +8,11 @@
 //  isolation and progress. 100% offline — ImageIO touches only the local file system,
 //  this type opens no sockets (the guarantee is locked by the CI test in task 10.4).
 //
-//  Scope note: 3.1 implemented the format + quality transcode; 3.2 adds resizing —
-//  `.maxDimension` downscale-on-load and `.targetBytes` quality binary search. Metadata
-//  stripping (3.3) and image→PDF assembly (3.4) still layer on in their own tasks; the
-//  no-resize path stays a faithful color- and metadata-preserving passthrough.
+//  Scope note: 3.1 implemented the format + quality transcode; 3.2 added resizing —
+//  `.maxDimension` downscale-on-load and `.targetBytes` quality binary search; 3.3 adds
+//  opt-in EXIF/GPS/maker-note stripping on the write path. Image→PDF assembly (3.4) still
+//  layers on in its own task. With stripping off (the default), the no-resize path stays a
+//  faithful color- and metadata-preserving passthrough.
 //
 
 import Foundation
@@ -234,11 +235,54 @@ actor ConversionEngine {
 
     // MARK: ImageIO
 
+    /// Builds the destination properties for a transcode that copies the source frame via
+    /// `…AddImageFromSource`. Sets the lossy-compression quality for quality-bearing formats and,
+    /// when `options.stripsMetadata` is set, marks the identifying metadata dictionaries for
+    /// removal so the output is written clean. Pass `quality` to override `options.quality` (the
+    /// target-size search drives quality itself).
+    private nonisolated static func sourceCopyProperties(
+        options: ConversionOptions, quality: Double? = nil
+    ) -> [CFString: Any] {
+        var properties: [CFString: Any] = [:]
+        if options.format.usesQuality {
+            properties[kCGImageDestinationLossyCompressionQuality] = quality ?? options.quality
+        }
+        if options.stripsMetadata {
+            // Top-level ImageIO dictionaries that carry identifying metadata — camera/EXIF data,
+            // GPS coordinates, the TIFF make/model/software/timestamp, and vendor maker notes.
+            // Marking each `kCFNull` drops it from the copied output (task 3.3). ImageIO still
+            // retains the structurally-necessary display fields: nulling the TIFF dictionary keeps
+            // only its `Orientation` tag (so the image stays upright), and the embedded color
+            // profile (ICC) is preserved independently — verified against a real-photo-shaped
+            // fixture. Removing the Exif dictionary also removes the Exif maker-note tag nested
+            // inside it; the standalone vendor maker-note dictionaries are siblings, so they are
+            // listed explicitly. (A local rather than a static: `[CFString]` is not `Sendable`, so
+            // it can't be a `nonisolated` stored constant under Swift 6 strict concurrency.)
+            let strippedKeys: [CFString] = [
+                kCGImagePropertyExifDictionary,
+                kCGImagePropertyExifAuxDictionary,
+                kCGImagePropertyGPSDictionary,
+                kCGImagePropertyTIFFDictionary,
+                kCGImagePropertyIPTCDictionary,
+                kCGImagePropertyMakerAppleDictionary,
+                kCGImagePropertyMakerCanonDictionary,
+                kCGImagePropertyMakerNikonDictionary,
+                kCGImagePropertyMakerMinoltaDictionary,
+                kCGImagePropertyMakerFujiDictionary,
+                kCGImagePropertyMakerOlympusDictionary,
+                kCGImagePropertyMakerPentaxDictionary,
+            ]
+            for key in strippedKeys { properties[key] = kCFNull }
+        }
+        return properties
+    }
+
     /// The actual transcode — `nonisolated` so batch items run in parallel off the actor,
     /// and synchronous so each item's CF temporaries drain inside its own `autoreleasepool`,
     /// keeping batch memory bounded. Dispatches on `resizeMode`:
     ///
-    /// - `.none` — a faithful passthrough copy (preserves color, orientation, metadata).
+    /// - `.none` — a faithful passthrough copy (preserves color and orientation; metadata too,
+    ///   unless `options.stripsMetadata` drops the identifying dictionaries).
     /// - `.maxDimension` — downscale-on-load via the ImageIO thumbnail generator.
     /// - `.targetBytes` — a bounded quality binary search that lands at/under the target.
     nonisolated static func encode(
@@ -266,7 +310,9 @@ actor ConversionEngine {
 
     /// Direct frame copy. `CGImageDestinationAddImageFromSource` carries the source frame's
     /// properties (embedded color profile, orientation, metadata) straight into the output
-    /// without us holding a decoded bitmap — faithful color, minimal memory.
+    /// without us holding a decoded bitmap — faithful color, minimal memory. When
+    /// `options.stripsMetadata` is set, the identifying dictionaries (Exif, GPS, maker notes)
+    /// are nulled in the override so they are dropped from the copy.
     private nonisolated static func encodePassthrough(
         source: URL, to destination: URL, options: ConversionOptions
     ) throws {
@@ -282,10 +328,7 @@ actor ConversionEngine {
             throw ConversionError.destinationUnavailable(destination)
         }
 
-        var properties: [CFString: Any] = [:]
-        if options.format.usesQuality {
-            properties[kCGImageDestinationLossyCompressionQuality] = options.quality
-        }
+        let properties = sourceCopyProperties(options: options)
 
         CGImageDestinationAddImageFromSource(
             imageDestination, imageSource, 0, properties as CFDictionary
@@ -300,6 +343,10 @@ actor ConversionEngine {
     /// thumbnail generator downsamples *as it decodes*, so a 48 MP source never lands in memory
     /// at full resolution — this is what keeps peak memory bounded (task 3.2 AC3). The transform
     /// is applied so the output is upright; a source already within the limit is never upscaled.
+    ///
+    /// The thumbnail is a fresh bitmap that inherits none of the source's Exif/GPS/maker-note
+    /// dictionaries, so this path emits metadata-clean output regardless of `stripsMetadata` —
+    /// stripping is satisfied here by construction (task 3.3).
     private nonisolated static func encodeDownscaled(
         source: URL, to destination: URL, maxPixels: Int, options: ConversionOptions
     ) throws {
@@ -363,7 +410,9 @@ actor ConversionEngine {
         let type = options.format.contentType.identifier as CFString
         let target = max(0, targetBytes)
 
-        /// Encodes the frame at `quality` into memory, returning the encoded bytes.
+        /// Encodes the frame at `quality` into memory, returning the encoded bytes. Honors
+        /// `options.stripsMetadata` — every probe writes the same clean (or faithful) metadata
+        /// the final output will carry, so size estimates match the file that lands on disk.
         func encodedData(quality: Double) throws -> Data {
             let data = NSMutableData()
             guard let imageDestination = CGImageDestinationCreateWithData(
@@ -373,7 +422,7 @@ actor ConversionEngine {
             }
             CGImageDestinationAddImageFromSource(
                 imageDestination, imageSource, 0,
-                [kCGImageDestinationLossyCompressionQuality: quality] as CFDictionary
+                sourceCopyProperties(options: options, quality: quality) as CFDictionary
             )
             guard CGImageDestinationFinalize(imageDestination) else {
                 throw ConversionError.encodingFailed(destination)
