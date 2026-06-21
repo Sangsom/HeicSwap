@@ -8,14 +8,10 @@
 import SwiftUI
 
 struct HomeScreen: View {
+    // Until the Convert shell (task 4.1) lands, Home surfaces the import harness so the
+    // import service (task 3.5) can be exercised on device.
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-        }
-        .padding()
+        ImportView()
     }
 }
 
