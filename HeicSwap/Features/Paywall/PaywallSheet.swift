@@ -95,8 +95,12 @@ struct PaywallSheet: View {
                     .font(Theme.Typography.headline)
                     .foregroundStyle(Theme.Colors.textSecondary)
                     .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
+                    // Liquid Glass on a floating control (task 10.2); degrades to an opaque material
+                    // under Reduce Transparency. Matches the Results sheet's close affordance.
+                    .glassEffect(in: .circle)
+                    .contentShape(.circle)
             }
+            .buttonStyle(.plain)
             .accessibilityLabel(Text(String(localized: "Close")))
         }
         .padding(.top, Theme.Spacing.small)

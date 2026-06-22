@@ -81,6 +81,10 @@ struct ConvertView: View {
                     .disabled(viewModel.isConverting)
                 Spacer()
                 Button(role: .destructive) {
+                    // Clearing the whole queue is the destructive action the spec marks `.warning`
+                    // (§4). "Convert more" also empties the queue but is a positive outcome, so the
+                    // haptic lives here at the destructive call site, not inside `clearAll()`.
+                    Haptics.destructive()
                     withAnimation(.snappy) {
                         viewModel.clearAll()
                         isGridExpanded = false

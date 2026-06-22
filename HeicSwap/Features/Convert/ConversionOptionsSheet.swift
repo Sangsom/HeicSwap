@@ -262,7 +262,7 @@ private struct OptionChip: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
+        Button(action: select) {
             HStack(spacing: Theme.Spacing.tight) {
                 Text(title)
                     .lineLimit(1)
@@ -285,6 +285,14 @@ private struct OptionChip: View {
         .accessibilityLabel(Text(title))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityHint(locked ? Text(String(localized: "Pro feature")) : Text(""))
+    }
+
+    /// Selecting a chip gives selection feedback (design spec §4). A *locked* chip routes to the
+    /// paywall instead of selecting, so it stays silent here — the rigid free-cap haptic fires on the
+    /// gate hit (`ConvertViewModel.hitGate`) rather than a selection tick.
+    private func select() {
+        if !locked { Haptics.selection() }
+        action()
     }
 
     private var foreground: Color {

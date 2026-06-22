@@ -7,7 +7,6 @@
 
 import PhotosUI
 import SwiftUI
-import UIKit
 
 /// Where the batch Convert action (task 5.3) is in its lifecycle. `idle` before a run and after a
 /// cancel; `converting` while the engine works; `finished` once a run completes naturally (the
@@ -218,6 +217,9 @@ final class ConvertViewModel {
     private func hitGate(_ trigger: ValueGate.Trigger, resuming action: PendingProAction, staged: Bool) {
         pendingAction = action
         analytics.log(.proGateHit(gate: trigger.rawValue))
+        // Hitting the free cap is a firm, slightly unyielding tap (design spec §4: `.impact(.rigid)`)
+        // — felt the same whether the gate trips on Convert or on a locked option in the sheet.
+        Haptics.freeCapHit()
         if staged {
             stagedTrigger = trigger
         } else {
@@ -294,6 +296,10 @@ final class ConvertViewModel {
     /// Runs the conversion unconditionally — the post-gate body of `convert()`, also the resume
     /// path after a successful upgrade.
     private func performConvert() {
+        // The run is actually starting — a medium impact confirms the tap (design spec §4). Fired
+        // here, not at the gate check, so a gated tap feels only the rigid free-cap tap, never both.
+        Haptics.convertTapped()
+
         // Pair each file-backed item with its id, preserving order, so the engine's per-item index
         // maps back to the right thumbnail. (Every imported item materializes to a file today; the
         // `.photoLibraryAsset` case is a placeholder and is simply skipped here.)
@@ -429,7 +435,7 @@ final class ConvertViewModel {
         phase = .finished(successCount: successCount, failureCount: failureCount)
         logConversionCompleted(successCount: successCount, failureCount: failureCount)
         if successCount > 0 {
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            Haptics.conversionComplete()
         }
     }
 

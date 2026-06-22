@@ -91,11 +91,16 @@ struct ResultsSheet: View {
             }
             Spacer()
             Button { dismiss() } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.title2)
-                    .symbolRenderingMode(.hierarchical)
+                Image(systemName: "xmark")
+                    .font(Theme.Typography.headline)
                     .foregroundStyle(Theme.Colors.textSecondary)
+                    .frame(width: 44, height: 44)
+                    // Liquid Glass on a floating control (task 10.2) — the system falls back to an
+                    // opaque material under Reduce Transparency, and the glyph stays legible either way.
+                    .glassEffect(in: .circle)
+                    .contentShape(.circle)
             }
+            .buttonStyle(.plain)
             .accessibilityLabel(Text(String(localized: "Close")))
         }
     }
@@ -240,14 +245,14 @@ struct ResultsSheet: View {
                 try await PhotoLibrarySaver.save(imageURLs: imageOutputs)
                 photoSaveState = .saved
                 analytics.log(.outputSaved(destination: .photos))
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                Haptics.saved()
             } catch PhotoLibrarySaver.SaveError.notAuthorized {
                 photoSaveState = .idle
                 showPermissionAlert = true
             } catch {
                 photoSaveState = .idle
                 showSaveErrorAlert = true
-                UINotificationFeedbackGenerator().notificationOccurred(.error)
+                Haptics.saveFailed()
             }
         }
     }
