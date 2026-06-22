@@ -27,7 +27,7 @@ struct HeicSwapApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ConvertView(viewModel: convertViewModel)
+            RootView(convertViewModel: convertViewModel)
                 .environment(appState)
                 .environment(\.analyticsClient, analyticsClient)
                 .environment(\.purchaseService, purchaseService)
