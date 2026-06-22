@@ -16,16 +16,24 @@ final class AppState {
     /// The app-wide entitlement source of truth (task 6.1), backed by `purchaseService` and an
     /// offline cache. Reads Pro state instantly at launch; `refresh()` reconciles with the store.
     let entitlementStore: EntitlementStore
+    /// The user's persisted conversion defaults (task 8.1), edited in Settings and used to seed the
+    /// Convert screen's session options.
+    let conversionDefaults: ConversionDefaults
 
     /// Observes app foregrounding for the lifetime of the app. `AppState` is the
     /// root state object and is never torn down before process exit, so the task
     /// needs no explicit cancellation.
     private var foregroundObserverTask: Task<Void, Never>?
 
-    init(analyticsClient: any AnalyticsClient, purchaseService: PurchaseService) {
+    init(
+        analyticsClient: any AnalyticsClient,
+        purchaseService: PurchaseService,
+        conversionDefaults: ConversionDefaults = ConversionDefaults()
+    ) {
         self.analyticsClient = analyticsClient
         self.purchaseService = purchaseService
         self.entitlementStore = EntitlementStore(purchaseClient: purchaseService)
+        self.conversionDefaults = conversionDefaults
         observeForeground()
     }
 

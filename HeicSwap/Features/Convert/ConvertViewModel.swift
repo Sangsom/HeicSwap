@@ -86,13 +86,17 @@ final class ConvertViewModel {
         engine: ConversionEngine = ConversionEngine(),
         pdfBuilder: PDFBuilder = PDFBuilder(),
         analytics: any AnalyticsClient = StubAnalyticsClient(),
-        entitlement: Entitlement = .free
+        entitlement: Entitlement = .free,
+        options: ConversionOptions = ConversionOptions()
     ) {
         self.importService = importService
         self.engine = engine
         self.pdfBuilder = pdfBuilder
         self.analytics = analytics
         self.entitlement = entitlement
+        // Seeded from the persisted defaults in the app (task 8.1); the view keeps it in sync as the
+        // defaults change. Set here so `didSet` (which clears the finished banner) doesn't run at init.
+        self.options = options
     }
 
     /// A Pro action recorded when the value gate blocked it, so it can resume after an upgrade.

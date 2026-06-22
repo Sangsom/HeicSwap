@@ -19,6 +19,11 @@ struct ConvertView: View {
     @State private var path: [ConvertRoute] = []
     @State private var isGridExpanded = false
 
+    /// The persisted conversion defaults (task 8.1). The view model is seeded from these at launch;
+    /// here we mirror later changes — made in Settings — into the live session options so a changed
+    /// default is reflected the next time the Options sheet opens (AC1).
+    @Environment(\.conversionDefaults) private var conversionDefaults
+
     /// View model injected via the initializer (default-constructed for the app and previews).
     init(viewModel: ConvertViewModel = ConvertViewModel()) {
         _viewModel = State(initialValue: viewModel)
@@ -44,6 +49,17 @@ struct ConvertView: View {
                     SettingsScreen()
                 }
             }
+        }
+        // Mirror each persisted default into the live session options as it changes in Settings —
+        // per field, so a default change never clobbers an unrelated in-session choice (AC1).
+        .onChange(of: conversionDefaults.format) { _, format in
+            viewModel.options.format = format
+        }
+        .onChange(of: conversionDefaults.quality) { _, quality in
+            viewModel.options.quality = quality
+        }
+        .onChange(of: conversionDefaults.stripsMetadata) { _, stripsMetadata in
+            viewModel.options.stripsMetadata = stripsMetadata
         }
     }
 

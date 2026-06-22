@@ -46,3 +46,17 @@ extension EnvironmentValues {
         set { self[EntitlementStoreKey.self] = newValue }
     }
 }
+
+// MARK: - Conversion Defaults
+
+private struct ConversionDefaultsKey: EnvironmentKey {
+    /// A standalone defaults store for previews and views rendered outside the app.
+    static let defaultValue = ConversionDefaults()
+}
+
+extension EnvironmentValues {
+    var conversionDefaults: ConversionDefaults {
+        get { self[ConversionDefaultsKey.self] }
+        set { self[ConversionDefaultsKey.self] = newValue }
+    }
+}
