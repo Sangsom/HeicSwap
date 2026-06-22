@@ -87,6 +87,7 @@ struct ResultsSheet: View {
                 Text("Done")
                     .font(Theme.Typography.largeTitle)
                     .foregroundStyle(Theme.Colors.textPrimary)
+                    .accessibilityAddTraits(.isHeader)
             }
             Spacer()
             Button { dismiss() } label: {
@@ -187,8 +188,9 @@ struct ResultsSheet: View {
                 Text("Convert more")
                     .font(Theme.Typography.callout)
                     .foregroundStyle(Theme.Colors.accent)
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: .infinity, minHeight: 44)
                     .padding(.vertical, Theme.Spacing.small)
+                    .contentShape(Rectangle())
             }
             .accessibilityHint(Text(String(localized: "Clears the queue to start a new batch")))
         }

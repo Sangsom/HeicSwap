@@ -79,10 +79,15 @@ struct ConversionOptionsSheet: View {
             Text("Options")
                 .font(Theme.Typography.title)
                 .foregroundStyle(Theme.Colors.textPrimary)
+                .accessibilityAddTraits(.isHeader)
             Spacer()
-            Button("Done") { dismiss() }
-                .font(Theme.Typography.headline)
-                .foregroundStyle(Theme.Colors.accent)
+            Button { dismiss() } label: {
+                Text("Done")
+                    .font(Theme.Typography.headline)
+                    .foregroundStyle(Theme.Colors.accent)
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+            }
         }
     }
 

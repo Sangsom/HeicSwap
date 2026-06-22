@@ -111,6 +111,7 @@ struct PaywallSheet: View {
             Text("HeicSwap Pro")
                 .font(Theme.Typography.largeTitle)
                 .foregroundStyle(Theme.Colors.textPrimary)
+                .accessibilityAddTraits(.isHeader)
 
             Text("Unlimited conversions and pro tools — all on your iPhone, never uploaded.")
                 .font(Theme.Typography.callout)
@@ -214,6 +215,7 @@ struct PaywallSheet: View {
             }
             .font(Theme.Typography.footnote)
             .foregroundStyle(Theme.Colors.accent)
+            .frame(minHeight: 44)
 
             Text("Cancel anytime. No fake timers, no tricks.")
                 .font(Theme.Typography.footnote)

@@ -116,6 +116,7 @@ private struct QueueCell: View {
             // One VoiceOver element per cell with a Remove action; the small ✕ is a touch affordance.
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(Text(String(localized: "Photo \(position) of \(total)")))
+            .accessibilityAddTraits(.isImage)
             .accessibilityAction(named: Text(String(localized: "Remove"))) {
                 if !isConverting { onRemove() }
             }

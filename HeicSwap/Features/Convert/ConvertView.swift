@@ -120,6 +120,7 @@ private struct ConvertHeader: View {
             Text("Convert")
                 .font(Theme.Typography.largeTitle)
                 .foregroundStyle(Theme.Colors.textPrimary)
+                .accessibilityAddTraits(.isHeader)
         }
     }
 }
@@ -334,15 +335,23 @@ private struct ConvertingProgress: View {
                 Text("Developing… \(converted) of \(total)")
                     .font(Theme.Typography.headline)
                     .foregroundStyle(Theme.Colors.textPrimary)
+                    // The progress text carries the count for VoiceOver; the bar below is hidden so
+                    // it isn't announced twice. Cancel stays a separate, directly-focusable button.
+                    .accessibilityLabel(Text(String(localized: "Converting")))
+                    .accessibilityValue(Text(String(localized: "\(converted) of \(total) done")))
                 Spacer()
                 Button(role: .cancel, action: onCancel) {
                     Text("Cancel")
+                        .font(Theme.Typography.callout)
+                        .foregroundStyle(Theme.Colors.accent)
+                        .frame(minWidth: 44, minHeight: 44, alignment: .trailing)
+                        .contentShape(Rectangle())
                 }
-                .font(Theme.Typography.callout)
-                .foregroundStyle(Theme.Colors.accent)
+                .accessibilityLabel(Text(String(localized: "Cancel conversion")))
             }
             ProgressView(value: Double(converted), total: Double(max(total, 1)))
                 .tint(Theme.Colors.accent)
+                .accessibilityHidden(true)
         }
         .padding(Theme.Spacing.item)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -350,9 +359,6 @@ private struct ConvertingProgress: View {
             RoundedRectangle(cornerRadius: Theme.Radius.input)
                 .fill(Theme.Colors.surface)
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text(String(localized: "Converting")))
-        .accessibilityValue(Text(String(localized: "\(converted) of \(total) done")))
     }
 }
 
@@ -504,14 +510,24 @@ private struct ConvertEmptyState: View {
     @State private var isPhotosPickerPresented = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.section) {
-            ConvertHeader()
-            invitation
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Scrollable so the invitation and add buttons never clip at the largest Dynamic Type
+        // sizes (Accessibility XXL). The balanced spacers keep it visually centered when it fits
+        // and collapse to let it scroll when it doesn't.
+        GeometryReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    ConvertHeader()
+                    Spacer(minLength: Theme.Spacing.sectionGap)
+                    invitation
+                        .frame(maxWidth: .infinity)
+                    Spacer(minLength: Theme.Spacing.sectionGap)
+                }
+                .padding(.horizontal, Theme.Spacing.section)
+                .padding(.top, Theme.Spacing.section)
+                .frame(minHeight: proxy.size.height, alignment: .top)
+            }
+            .scrollBounceBehavior(.basedOnSize)
         }
-        .padding(.horizontal, Theme.Spacing.section)
-        .padding(.top, Theme.Spacing.section)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private var invitation: some View {
@@ -607,13 +623,18 @@ private struct SkippedBanner: View {
         HStack(spacing: Theme.Spacing.item) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(Theme.Colors.destructive)
+                .accessibilityHidden(true)
             Text("Some items couldn't be added — they aren't supported images.")
                 .font(Theme.Typography.footnote)
                 .foregroundStyle(Theme.Colors.textPrimary)
             Spacer()
-            Button("Dismiss", action: onDismiss)
-                .font(Theme.Typography.footnote)
-                .foregroundStyle(Theme.Colors.accent)
+            Button(action: onDismiss) {
+                Text("Dismiss")
+                    .font(Theme.Typography.footnote)
+                    .foregroundStyle(Theme.Colors.accent)
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+            }
         }
         .padding(Theme.Spacing.item)
         .frame(maxWidth: .infinity, alignment: .leading)
