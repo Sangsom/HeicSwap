@@ -11,40 +11,109 @@ import Foundation
 
 // MARK: - Analytics Event
 
-/// Type-safe analytics events. Maps to analytics event names and parameters.
-/// The concrete event catalog is finalized in the analytics task (9.1); these are seeds.
-enum AnalyticsEvent {
+/// The finalized analytics event catalog (task 9.1), mapping 1:1 to PRD §7. Each case names a
+/// product moment and carries only **non-PII** parameters — counts, formats, durations, and
+/// enumerated kinds. No image bytes, file names, or content ever travel through here.
+///
+/// Funnels these power: Activation (`appLaunched` → `imagesImported` → `conversionCompleted`) and
+/// Monetization (`proGateHit` → `paywallShown` → `purchaseCompleted`).
+///
+/// `nonisolated` (like the model/policy enums) so events can be constructed and logged from any
+/// isolation — the mapping is pure value logic with no actor state.
+nonisolated enum AnalyticsEvent {
+    /// App opened. `isFirstLaunch` is true only the very first launch after install (PRD §7).
+    case appLaunched(isFirstLaunch: Bool)
+    /// First-run onboarding appeared — start of the activation funnel (kept from task 7.1).
     case onboardingStarted
-    case tabSelected(tab: String)
-    case screenViewed(screen: String)
+    /// Onboarding finished or was skipped. `screensViewed` is how many of the screens the user
+    /// actually saw; `skipped` distinguishes the Skip button from completing the last screen.
+    case onboardingCompleted(screensViewed: Int, skipped: Bool)
+    /// Images were added to the queue. `source` is where they came from.
+    case imagesImported(count: Int, source: ImportSource)
+    /// Photo originals were fetched (downloaded from iCloud if optimized-away) on import.
+    case icloudDownload(count: Int)
+    /// A batch finished converting. Counts / formats / duration only (AC2) — never any content.
+    case conversionCompleted(
+        countSuccess: Int,
+        countFailed: Int,
+        targetFormat: String,
+        isBatch: Bool,
+        usedResize: Bool,
+        usedStrip: Bool,
+        toPDF: Bool,
+        durationMs: Int
+    )
     /// A free user hit a value gate and was shown the paywall (task 6.3). `gate` is the
     /// `ValueGate.Trigger` raw value (`batch_size` / `target_size` / `strip_metadata`).
     case proGateHit(gate: String)
-    case premiumPurchased(source: String)
-    case premiumRestored
+    /// The paywall was presented. `trigger` is the gate that opened it, or `settings` for the
+    /// permanent Settings entry.
+    case paywallShown(trigger: String)
+    /// A purchase completed. `productID` is the billing term (`annual` / `weekly` / `lifetime`).
+    case purchaseCompleted(productID: String)
+    /// An output was saved or shared. `destination` is where it went.
+    case outputSaved(destination: SaveDestination)
+
+    /// Where imported images came from.
+    enum ImportSource: String {
+        case photos
+        case files
+    }
+
+    /// Where a finished output was sent.
+    enum SaveDestination: String {
+        case photos
+        case files
+        case share
+    }
 
     var name: String {
         switch self {
+        case .appLaunched: return "app_launched"
         case .onboardingStarted: return "onboarding_started"
-        case .tabSelected: return "tab_selected"
-        case .screenViewed: return "screen_viewed"
+        case .onboardingCompleted: return "onboarding_completed"
+        case .imagesImported: return "images_imported"
+        case .icloudDownload: return "icloud_download"
+        case .conversionCompleted: return "conversion_completed"
         case .proGateHit: return "pro_gate_hit"
-        case .premiumPurchased: return "premium_purchased"
-        case .premiumRestored: return "premium_restored"
+        case .paywallShown: return "paywall_shown"
+        case .purchaseCompleted: return "purchase_completed"
+        case .outputSaved: return "output_saved"
         }
     }
 
     var parameters: [String: Any]? {
         switch self {
-        case .tabSelected(let tab):
-            return ["tab": tab]
-        case .screenViewed(let screen):
-            return ["screen": screen]
-        case .proGateHit(let gate):
+        case let .appLaunched(isFirstLaunch):
+            return ["is_first_launch": isFirstLaunch]
+        case let .onboardingCompleted(screensViewed, skipped):
+            return ["screens_viewed": screensViewed, "skipped": skipped]
+        case let .imagesImported(count, source):
+            return ["count": count, "source": source.rawValue]
+        case let .icloudDownload(count):
+            return ["count": count]
+        case let .conversionCompleted(
+            countSuccess, countFailed, targetFormat, isBatch, usedResize, usedStrip, toPDF, durationMs
+        ):
+            return [
+                "count_success": countSuccess,
+                "count_failed": countFailed,
+                "target_format": targetFormat,
+                "is_batch": isBatch,
+                "used_resize": usedResize,
+                "used_strip": usedStrip,
+                "to_pdf": toPDF,
+                "duration_ms": durationMs,
+            ]
+        case let .proGateHit(gate):
             return ["gate": gate]
-        case .premiumPurchased(let source):
-            return ["source": source]
-        case .premiumRestored, .onboardingStarted:
+        case let .paywallShown(trigger):
+            return ["trigger": trigger]
+        case let .purchaseCompleted(productID):
+            return ["product_id": productID]
+        case let .outputSaved(destination):
+            return ["destination": destination.rawValue]
+        case .onboardingStarted:
             return nil
         }
     }

@@ -77,6 +77,14 @@ final class ConvertViewModel {
     /// Number of items the in-flight run is converting — the progress-bar denominator.
     private(set) var conversionTotal = 0
 
+    /// The options the in-flight run started with, captured so `settle` can emit
+    /// `conversion_completed` even if `options` were edited afterwards (task 9.1).
+    private var runOptions = ConversionOptions()
+
+    /// When the in-flight run began, for the `duration_ms` of `conversion_completed`. A monotonic
+    /// clock so it's immune to wall-clock changes mid-run.
+    private var runStartedAt: ContinuousClock.Instant?
+
     /// The in-flight conversion, retained so a second tap can't start a parallel run, `cancel()`
     /// can stop it, and tests can await it.
     private(set) var conversionTask: Task<Void, Never>?
@@ -143,13 +151,25 @@ final class ConvertViewModel {
     /// to the queue in selection order.
     func addFromPhotos(_ selection: [PhotosPickerItem]) async {
         clearFinishedState()
+        let before = importService.items.count
         await importService.importFromPhotos(selection)
+        let added = importService.items.count - before
+        guard added > 0 else { return }
+        // The Photos path materializes each original via `loadTransferable`, which downloads from
+        // iCloud when the original is optimized-away — so every materialized photo counts as an
+        // iCloud-original fetch (PRD §7 `icloud_download`). Counts only, never any content.
+        analytics.log(.imagesImported(count: added, source: .photos))
+        analytics.log(.icloudDownload(count: added))
     }
 
     /// Imports the chosen image files, appending them to the queue in order.
     func addFromFiles(_ urls: [URL]) async {
         clearFinishedState()
+        let before = importService.items.count
         await importService.importFromFiles(urls)
+        let added = importService.items.count - before
+        guard added > 0 else { return }
+        analytics.log(.imagesImported(count: added, source: .files))
     }
 
     // MARK: Remove
@@ -290,6 +310,8 @@ final class ConvertViewModel {
         developedItemIDs = []
         lastResults = []
         conversionTotal = urls.count
+        runOptions = options
+        runStartedAt = .now
         phase = .converting
 
         conversionTask = Task { [weak self] in
@@ -397,16 +419,40 @@ final class ConvertViewModel {
     }
 
     /// Settles a finished run: `.idle` if it was cancelled (so the queue returns to normal),
-    /// otherwise `.finished` with a success haptic when at least one item converted.
+    /// otherwise `.finished` with a success haptic when at least one item converted. A natural
+    /// completion (not a cancel) emits `conversion_completed` with counts/format/duration only (AC2).
     private func settle(successCount: Int, failureCount: Int) {
         if Task.isCancelled {
             phase = .idle
             return
         }
         phase = .finished(successCount: successCount, failureCount: failureCount)
+        logConversionCompleted(successCount: successCount, failureCount: failureCount)
         if successCount > 0 {
             UINotificationFeedbackGenerator().notificationOccurred(.success)
         }
+    }
+
+    /// Emits `conversion_completed` for a just-finished run — counts, target format, the feature
+    /// flags the run used, and its wall-clock duration. No file names, no image content (AC2/AC3).
+    private func logConversionCompleted(successCount: Int, failureCount: Int) {
+        let durationMs = runStartedAt.map(Self.milliseconds(since:)) ?? 0
+        analytics.log(.conversionCompleted(
+            countSuccess: successCount,
+            countFailed: failureCount,
+            targetFormat: runOptions.format.rawValue,
+            isBatch: conversionTotal > 1,
+            usedResize: runOptions.resizeMode != .none,
+            usedStrip: runOptions.stripsMetadata,
+            toPDF: runOptions.format == .pdf,
+            durationMs: durationMs
+        ))
+    }
+
+    /// Whole milliseconds elapsed from `start` to now on the monotonic continuous clock.
+    private nonisolated static func milliseconds(since start: ContinuousClock.Instant) -> Int {
+        let (seconds, attoseconds) = (ContinuousClock.now - start).components
+        return Int(seconds) * 1000 + Int(attoseconds / 1_000_000_000_000_000)
     }
 
     /// Clears a completed run's banner when the queue or options change so it can't go stale.

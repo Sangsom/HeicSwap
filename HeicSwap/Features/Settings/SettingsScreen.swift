@@ -52,7 +52,7 @@ struct SettingsScreen: View {
         .background(Theme.Colors.background.ignoresSafeArea())
         .navigationTitle("Settings")
         .sheet(isPresented: $isPaywallPresented) {
-            PaywallSheet()
+            PaywallSheet(trigger: "settings")
         }
     }
 

@@ -204,8 +204,8 @@ private struct ConvertQueueContent: View {
                 }
             )
         }
-        .sheet(item: $viewModel.paywallTrigger, onDismiss: paywallDismissed) { _ in
-            PaywallSheet()
+        .sheet(item: $viewModel.paywallTrigger, onDismiss: paywallDismissed) { trigger in
+            PaywallSheet(trigger: trigger.rawValue)
         }
         .sheet(isPresented: $isArrangePresented) {
             ArrangePagesSheet(viewModel: viewModel)

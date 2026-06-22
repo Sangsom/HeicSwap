@@ -20,11 +20,18 @@ import SwiftUI
 /// the store (AC2). Dismissing returns the user to the free tier with no further prompt (AC3).
 struct PaywallSheet: View {
 
+    /// What opened the paywall, reported as `paywall_shown`'s `trigger` (PRD §7): a value-gate
+    /// kind (`batch_size` / `target_size` / `strip_metadata`) or `settings` for the permanent entry.
+    let trigger: String
+
     @Environment(\.entitlementStore) private var store
+    @Environment(\.analyticsClient) private var analytics
     @Environment(\.dismiss) private var dismiss
 
     /// The currently highlighted plan. Seeded to the annual plan once products load (AC1).
     @State private var selectedProductID: String?
+    /// Ensures `paywall_shown` is logged exactly once per presentation.
+    @State private var didLogShown = false
     /// The in-flight store action, so the matching control shows progress and both are disabled.
     @State private var action: Action?
     /// A user-facing message for a failed purchase/restore (cancellation is silent, not an error).
@@ -65,6 +72,10 @@ struct PaywallSheet: View {
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
         .task {
+            if !didLogShown {
+                didLogShown = true
+                analytics.log(.paywallShown(trigger: trigger))
+            }
             await store.loadProducts()
             if selectedProductID == nil {
                 selectedProductID = PaywallPlan.defaultSelectionID(in: store.products)
@@ -241,8 +252,9 @@ struct PaywallSheet: View {
             defer { action = nil }
             do {
                 let outcome = try await store.purchase(plan.product)
-                if case .purchased(let isPro) = outcome, isPro {
-                    dismiss()
+                if case .purchased(let isPro) = outcome {
+                    analytics.log(.purchaseCompleted(productID: Self.productID(for: plan.product.term)))
+                    if isPro { dismiss() }
                 }
             } catch {
                 message = String(localized: "Couldn’t complete the purchase. Please try again.")
@@ -268,6 +280,16 @@ struct PaywallSheet: View {
             } catch {
                 message = String(localized: "Couldn’t restore purchases. Please try again.")
             }
+        }
+    }
+
+    /// The `product_id` value for `purchase_completed` — the billing term (`annual` / `weekly` /
+    /// `lifetime`), per PRD §7, rather than the raw store SKU.
+    private static func productID(for term: PurchaseProduct.Term) -> String {
+        switch term {
+        case .annual: "annual"
+        case .weekly: "weekly"
+        case .lifetime: "lifetime"
         }
     }
 }
@@ -353,13 +375,13 @@ private struct PlanRow: View {
 }
 
 #Preview("Light") {
-    PaywallSheet()
+    PaywallSheet(trigger: "preview")
         .environment(\.entitlementStore, previewStore())
         .preferredColorScheme(.light)
 }
 
 #Preview("Dark") {
-    PaywallSheet()
+    PaywallSheet(trigger: "preview")
         .environment(\.entitlementStore, previewStore())
         .preferredColorScheme(.dark)
 }

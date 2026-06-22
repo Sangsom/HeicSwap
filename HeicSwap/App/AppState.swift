@@ -20,6 +20,14 @@ final class AppState {
     /// Convert screen's session options.
     let conversionDefaults: ConversionDefaults
 
+    /// On-device MetricKit crash/diagnostics capture (task 9.1). Retained for the app's lifetime so
+    /// the subscription stays live; it sends nothing off-device.
+    private let metricKitReporter = MetricKitReporter()
+
+    /// `UserDefaults` flag recording that the app has launched at least once, so `app_launched` can
+    /// report `is_first_launch` accurately (PRD §7) without relying on the onboarding flag.
+    private static let hasLaunchedKey = "com.heicswap.analytics.hasLaunched"
+
     /// Observes app foregrounding for the lifetime of the app. `AppState` is the
     /// root state object and is never torn down before process exit, so the task
     /// needs no explicit cancellation.
@@ -42,8 +50,20 @@ final class AppState {
     /// SDKs are configured; the store already reflects the cached entitlement from its init (AC3).
     func loadInitialState() async {
         analyticsClient.configure()
+        analyticsClient.log(.appLaunched(isFirstLaunch: consumeIsFirstLaunch()))
+        metricKitReporter.start()
         purchaseService.configure()
         await entitlementStore.refresh()
+    }
+
+    /// Whether this is the first launch since install, flipping the persisted flag so every later
+    /// launch reports `false`. Reads/writes `UserDefaults` synchronously — cheap and off the
+    /// critical path here.
+    private func consumeIsFirstLaunch() -> Bool {
+        let defaults = UserDefaults.standard
+        let hasLaunched = defaults.bool(forKey: Self.hasLaunchedKey)
+        if !hasLaunched { defaults.set(true, forKey: Self.hasLaunchedKey) }
+        return !hasLaunched
     }
 
     /// Refreshes state when app returns to foreground — re-checks the entitlement so a renewal or

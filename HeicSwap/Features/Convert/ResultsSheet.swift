@@ -28,6 +28,7 @@ struct ResultsSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+    @Environment(\.analyticsClient) private var analytics
 
     @State private var photoSaveState: PhotoSaveState = .idle
     @State private var isExportingToFiles = false
@@ -58,8 +59,11 @@ struct ResultsSheet: View {
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
         .sheet(isPresented: $isExportingToFiles) {
-            DocumentExporter(urls: allOutputs) { isExportingToFiles = false }
-                .ignoresSafeArea()
+            DocumentExporter(urls: allOutputs) { didSave in
+                isExportingToFiles = false
+                if didSave { analytics.log(.outputSaved(destination: .files)) }
+            }
+            .ignoresSafeArea()
         }
         .alert(String(localized: "Allow photo access"), isPresented: $showPermissionAlert) {
             Button(String(localized: "Open Settings")) { openSettings() }
@@ -213,6 +217,12 @@ struct ResultsSheet: View {
                     .background(Theme.Colors.accent, in: Capsule())
             }
         )
+        // `ShareLink` exposes no completion callback, so `output_saved` is logged when share is
+        // initiated (the final destination — AirDrop, Mail, … — isn't observable). A simultaneous
+        // gesture records the tap without intercepting the share sheet's own presentation.
+        .simultaneousGesture(TapGesture().onEnded {
+            analytics.log(.outputSaved(destination: .share))
+        })
         .accessibilityLabel(Text(
             allOutputs.count == 1
                 ? String(localized: "Share 1 file")
@@ -227,6 +237,7 @@ struct ResultsSheet: View {
             do {
                 try await PhotoLibrarySaver.save(imageURLs: imageOutputs)
                 photoSaveState = .saved
+                analytics.log(.outputSaved(destination: .photos))
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
             } catch PhotoLibrarySaver.SaveError.notAuthorized {
                 photoSaveState = .idle
@@ -395,10 +406,12 @@ private struct SecondaryActionButton: View {
 
 /// Wraps `UIDocumentPickerViewController` in export mode so the user can save every output to a
 /// Files destination in one pass. `asCopy: true` keeps the originals in the temp run directory
-/// (Share and Save to Photos still need them). The completion closure dismisses the host sheet.
+/// (Share and Save to Photos still need them). The completion closure dismisses the host sheet and
+/// reports whether the user actually saved (`true`) or cancelled (`false`), so `output_saved` only
+/// fires on a real save.
 private struct DocumentExporter: UIViewControllerRepresentable {
     let urls: [URL]
-    let onComplete: () -> Void
+    let onComplete: (_ didSave: Bool) -> Void
 
     func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
         let picker = UIDocumentPickerViewController(forExporting: urls, asCopy: true)
@@ -411,15 +424,15 @@ private struct DocumentExporter: UIViewControllerRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(onComplete: onComplete) }
 
     final class Coordinator: NSObject, UIDocumentPickerDelegate {
-        let onComplete: () -> Void
-        init(onComplete: @escaping () -> Void) { self.onComplete = onComplete }
+        let onComplete: (Bool) -> Void
+        init(onComplete: @escaping (Bool) -> Void) { self.onComplete = onComplete }
 
         func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
-            onComplete()
+            onComplete(true)
         }
 
         func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
-            onComplete()
+            onComplete(false)
         }
     }
 }

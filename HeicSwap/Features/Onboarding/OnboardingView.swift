@@ -24,6 +24,9 @@ struct OnboardingView: View {
 
     @State private var selection = 0
     @State private var didLogStart = false
+    /// The furthest page the user has reached, so `onboarding_completed` can report how many
+    /// screens they actually saw (PRD §7 `screens_viewed`).
+    @State private var maxPageReached = 0
 
     private var isLastPage: Bool { selection == Onboarding.pages.count - 1 }
 
@@ -42,6 +45,9 @@ struct OnboardingView: View {
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
+                .onChange(of: selection) { _, page in
+                    maxPageReached = max(maxPageReached, page)
+                }
 
                 PageIndicator(count: Onboarding.pages.count, selection: selection)
 
@@ -61,7 +67,7 @@ struct OnboardingView: View {
         HStack {
             OnDeviceBadge()
             Spacer()
-            Button(action: finish) {
+            Button { finish(skipped: true) } label: {
                 Text("Skip")
                     .font(Theme.Typography.callout)
                     .foregroundStyle(Theme.Colors.textSecondary)
@@ -82,14 +88,17 @@ struct OnboardingView: View {
     /// Advances to the next screen, or completes onboarding on the last one.
     private func advance() {
         if isLastPage {
-            finish()
+            finish(skipped: false)
         } else {
             withAnimation(.snappy) { selection += 1 }
         }
     }
 
-    /// Records onboarding as seen (AC3) and dismisses the cover — the empty state is already behind it.
-    private func finish() {
+    /// Records onboarding as seen (AC3) and dismisses the cover — the empty state is already behind
+    /// it — after logging `onboarding_completed` with how many screens were seen and whether the
+    /// user skipped (PRD §7).
+    private func finish(skipped: Bool) {
+        analyticsClient.log(.onboardingCompleted(screensViewed: maxPageReached + 1, skipped: skipped))
         hasOnboarded = true
     }
 }

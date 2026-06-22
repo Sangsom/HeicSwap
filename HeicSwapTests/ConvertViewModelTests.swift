@@ -67,6 +67,13 @@ private final class SpyAnalyticsClient: AnalyticsClient {
     }
 
     var gateHitCount: Int { events.filter { $0.name == "pro_gate_hit" }.count }
+
+    /// Parameters of the most recent event named `name`, if any (task 9.1).
+    func lastParameters(of name: String) -> [String: Any]? {
+        events.last { $0.name == name }?.parameters
+    }
+
+    func count(of name: String) -> Int { events.filter { $0.name == name }.count }
 }
 
 // MARK: - Tests
@@ -394,5 +401,50 @@ struct ConvertViewModelTests {
 
         #expect(viewModel.options == before)
         #expect(viewModel.options.stripsMetadata == false)
+    }
+
+    // MARK: Analytics events (task 9.1)
+
+    @Test("images_imported fires with the added count and source; the Files path emits no icloud_download")
+    func imagesImportedOnFileImport() async throws {
+        let workspace = try Workspace()
+        let analytics = SpyAnalyticsClient()
+        let viewModel = makeViewModel(in: workspace, analytics: analytics)
+        let urls = try (0..<3).map { try makeImage(named: "in-\($0).png", in: workspace.root) }
+
+        await viewModel.addFromFiles(urls)
+
+        let params = try #require(analytics.lastParameters(of: "images_imported"))
+        #expect(params["count"] as? Int == 3)
+        #expect(params["source"] as? String == "files")
+        // The Files path is a local copy — no iCloud-original fetch signal (that's the Photos path).
+        #expect(analytics.count(of: "icloud_download") == 0)
+    }
+
+    @Test("AC2/AC3: conversion_completed fires with counts/format/flags/duration and only the §7 keys")
+    func conversionCompletedEmitsNonPIIParams() async throws {
+        let workspace = try Workspace()
+        let analytics = SpyAnalyticsClient()
+        let viewModel = try await makeViewModelWithQueue(2, in: workspace, analytics: analytics)
+        viewModel.options.format = .jpg
+
+        viewModel.convert()
+        await viewModel.conversionTask?.value
+        #expect(viewModel.phase == .finished(successCount: 2, failureCount: 0))
+
+        let params = try #require(analytics.lastParameters(of: "conversion_completed"))
+        #expect(params["count_success"] as? Int == 2)
+        #expect(params["count_failed"] as? Int == 0)
+        #expect(params["target_format"] as? String == "jpg")
+        #expect(params["is_batch"] as? Bool == true)   // two inputs
+        #expect(params["to_pdf"] as? Bool == false)
+        #expect(params["used_strip"] as? Bool == false)
+        #expect(params["used_resize"] as? Bool == false)
+        #expect(params["duration_ms"] as? Int != nil)
+        // Exactly the §7 set — no file names or paths can ride along (AC3).
+        #expect(Set(params.keys) == [
+            "count_success", "count_failed", "target_format", "is_batch",
+            "used_resize", "used_strip", "to_pdf", "duration_ms",
+        ])
     }
 }
