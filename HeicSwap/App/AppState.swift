@@ -13,6 +13,9 @@ import SwiftUI
 final class AppState {
     let analyticsClient: any AnalyticsClient
     let purchaseService: PurchaseService
+    /// The app-wide entitlement source of truth (task 6.1), backed by `purchaseService` and an
+    /// offline cache. Reads Pro state instantly at launch; `refresh()` reconciles with the store.
+    let entitlementStore: EntitlementStore
 
     /// Observes app foregrounding for the lifetime of the app. `AppState` is the
     /// root state object and is never torn down before process exit, so the task
@@ -22,19 +25,23 @@ final class AppState {
     init(analyticsClient: any AnalyticsClient, purchaseService: PurchaseService) {
         self.analyticsClient = analyticsClient
         self.purchaseService = purchaseService
+        self.entitlementStore = EntitlementStore(purchaseClient: purchaseService)
         observeForeground()
     }
 
     /// Loads initial app state. Called from `.task` after the first frame, so SDK
-    /// configuration stays off the launch critical path.
-    func loadInitialState() {
+    /// configuration stays off the launch critical path. The entitlement refresh runs after the
+    /// SDKs are configured; the store already reflects the cached entitlement from its init (AC3).
+    func loadInitialState() async {
         analyticsClient.configure()
         purchaseService.configure()
+        await entitlementStore.refresh()
     }
 
-    /// Refreshes state when app returns to foreground.
-    func refreshOnForeground() {
-        // Extend as needed: re-check subscription, sync data, etc.
+    /// Refreshes state when app returns to foreground — re-checks the entitlement so a renewal or
+    /// expiry that happened off-app is reflected.
+    func refreshOnForeground() async {
+        await entitlementStore.refresh()
     }
 
     private func observeForeground() {
@@ -43,7 +50,7 @@ final class AppState {
                 named: UIApplication.willEnterForegroundNotification
             )
             for await _ in foregroundNotifications {
-                self?.refreshOnForeground()
+                await self?.refreshOnForeground()
             }
         }
     }

@@ -27,8 +27,9 @@ struct HeicSwapApp: App {
                 .environment(appState)
                 .environment(\.analyticsClient, analyticsClient)
                 .environment(\.purchaseService, purchaseService)
+                .environment(\.entitlementStore, appState.entitlementStore)
                 .task {
-                    appState.loadInitialState()
+                    await appState.loadInitialState()
                 }
         }
     }
