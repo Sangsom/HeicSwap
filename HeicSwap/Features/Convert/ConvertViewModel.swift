@@ -100,6 +100,13 @@ final class ConvertViewModel {
     /// Items finished so far in the in-flight (or just-completed) run — the progress-bar numerator.
     var convertedCount: Int { developedItemIDs.count }
 
+    /// True when the run targets a combined PDF — its page order can be arranged before export (5.5).
+    var isPDFTarget: Bool { options.format == .pdf }
+
+    /// Whether the PDF page order is worth arranging: a PDF target with at least two pages. A single
+    /// page has no order to change, so the reorder affordance stays hidden.
+    var canReorderForPDF: Bool { isPDFTarget && items.count > 1 }
+
     // MARK: Add
 
     /// Imports the picked Photos items (downloading iCloud originals on demand), appending them
@@ -134,6 +141,16 @@ final class ConvertViewModel {
     /// Dismisses the skipped-items note.
     func clearSkipped() {
         importService.clearSkipped()
+    }
+
+    // MARK: Reorder (task 5.5)
+
+    /// Reorders the queue — the PDF page order the user arranges before export. Clears a stale
+    /// completion banner like the other queue mutations; `convert()` reads `items` in order, so the
+    /// produced PDF matches the new arrangement.
+    func moveItems(fromOffsets source: IndexSet, toOffset destination: Int) {
+        clearFinishedState()
+        importService.move(fromOffsets: source, toOffset: destination)
     }
 
     // MARK: Convert (task 5.3)

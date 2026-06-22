@@ -118,6 +118,7 @@ private struct ConvertQueueContent: View {
 
     @State private var isOptionsPresented = false
     @State private var isResultsPresented = false
+    @State private var isArrangePresented = false
 
     /// Items the just-finished run couldn't convert — surfaced in the Results sheet footnote.
     private var failureCount: Int {
@@ -147,6 +148,14 @@ private struct ConvertQueueContent: View {
                 }
                 .disabled(viewModel.isConverting)
 
+                if viewModel.canReorderForPDF {
+                    ArrangePagesRow(pageCount: viewModel.items.count) {
+                        isArrangePresented = true
+                    }
+                    .disabled(viewModel.isConverting)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+
                 ConvertActionSection(
                     viewModel: viewModel,
                     onConvert: startConvert,
@@ -160,9 +169,13 @@ private struct ConvertQueueContent: View {
             .padding(.horizontal, Theme.Spacing.section)
             .padding(.top, Theme.Spacing.section)
             .padding(.bottom, Theme.Spacing.majorBreak)
+            .animation(.snappy, value: viewModel.canReorderForPDF)
         }
         .sheet(isPresented: $isOptionsPresented) {
             ConversionOptionsSheet(options: $viewModel.options, entitlement: viewModel.entitlement)
+        }
+        .sheet(isPresented: $isArrangePresented) {
+            ArrangePagesSheet(viewModel: viewModel)
         }
         .sheet(isPresented: $isResultsPresented) {
             ResultsSheet(
@@ -392,6 +405,49 @@ private struct OptionsSummaryRow: View {
         .accessibilityLabel(Text(String(localized: "Output options")))
         .accessibilityValue(Text(OptionsSummary.text(for: options)))
         .accessibilityHint(Text(String(localized: "Choose format, quality, resize, and metadata")))
+    }
+}
+
+// MARK: - Arrange pages row
+
+/// The entry point to drag-to-reorder PDF pages (task 5.5), shown beneath the options row only when
+/// the target is a multi-page PDF. Surfaces the PDF path prominently — when you're combining photos
+/// into a PDF, arranging their order is one tap away.
+private struct ArrangePagesRow: View {
+    let pageCount: Int
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: Theme.Spacing.item) {
+                Image(systemName: "list.number")
+                    .foregroundStyle(Theme.Colors.accent)
+                VStack(alignment: .leading, spacing: Theme.Spacing.tight) {
+                    Text("PDF pages")
+                        .font(Theme.Typography.footnote)
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                    Text("Arrange \(pageCount) pages")
+                        .font(Theme.Typography.headline)
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+            .padding(Theme.Spacing.item)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .background {
+                RoundedRectangle(cornerRadius: Theme.Radius.input)
+                    .fill(Theme.Colors.surface)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(String(localized: "Arrange PDF pages")))
+        .accessibilityValue(Text(String(localized: "\(pageCount) pages")))
+        .accessibilityHint(Text(String(localized: "Drag to reorder pages before export")))
     }
 }
 

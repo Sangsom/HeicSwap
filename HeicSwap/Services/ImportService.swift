@@ -175,6 +175,14 @@ final class ImportService {
         skipped.removeAll { $0.id == id }
     }
 
+    /// Reorders the ready queue, backing drag-to-reorder of PDF pages (task 5.5). The offsets are
+    /// positions within `items` (the only collection the reorder UI shows); in-flight downloads and
+    /// skipped rows keep their own ordering. The engine and `PDFBuilder` read `items` in order, so
+    /// the produced PDF matches the arranged order.
+    func move(fromOffsets source: IndexSet, toOffset destination: Int) {
+        items.move(fromOffsets: source, toOffset: destination)
+    }
+
     /// Clears the skipped list (e.g. after the user has acknowledged it).
     func clearSkipped() {
         skipped.removeAll()

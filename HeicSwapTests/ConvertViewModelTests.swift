@@ -9,6 +9,7 @@
 //  covered by the manual test plan.
 //
 
+import CoreGraphics
 import Foundation
 import ImageIO
 import Testing
@@ -166,5 +167,72 @@ struct ConvertViewModelTests {
         viewModel.options.quality = 0.5
         #expect(viewModel.phase == .idle)
         #expect(viewModel.developedItemIDs.isEmpty)
+    }
+
+    // MARK: Reorder (task 5.5)
+
+    @Test("AC1 (5.5): moving a page updates the queue order")
+    func reorderUpdatesQueueOrder() async throws {
+        let workspace = try Workspace()
+        let viewModel = try await makeViewModelWithQueue(4, in: workspace)
+        let original = viewModel.items.map(\.id)
+
+        // Drag the first page to the end of the four-item queue.
+        viewModel.moveItems(fromOffsets: IndexSet(integer: 0), toOffset: 4)
+
+        #expect(viewModel.items.map(\.id) == [original[1], original[2], original[3], original[0]])
+    }
+
+    @Test("Reorder is offered only for a multi-page PDF target")
+    func reorderAvailability() async throws {
+        let workspace = try Workspace()
+        let viewModel = try await makeViewModelWithQueue(3, in: workspace)
+
+        viewModel.options.format = .jpg
+        #expect(viewModel.canReorderForPDF == false)
+
+        viewModel.options.format = .pdf
+        #expect(viewModel.canReorderForPDF == true)
+    }
+
+    @Test("A single-page PDF has no order to arrange")
+    func singlePagePDFIsNotReorderable() async throws {
+        let workspace = try Workspace()
+        let viewModel = try await makeViewModelWithQueue(1, in: workspace)
+        viewModel.options.format = .pdf
+        #expect(viewModel.canReorderForPDF == false)
+    }
+
+    @Test("AC2 (5.5): a reordered queue exports the PDF in the new page order")
+    func reorderedQueueExportsPDFInNewOrder() async throws {
+        let workspace = try Workspace()
+        let viewModel = makeViewModel(in: workspace)
+
+        // Three distinct aspect ratios so each page is identifiable by its shape alone. The images
+        // are small (≤120px), so PDFBuilder doesn't downscale and each page's media box keeps the
+        // source aspect ratio exactly.
+        let wide = try makeImage(named: "wide.png", width: 120, height: 40, in: workspace.root)    // ≈ 3.0
+        let tall = try makeImage(named: "tall.png", width: 40, height: 120, in: workspace.root)    // ≈ 0.33
+        let square = try makeImage(named: "square.png", width: 80, height: 80, in: workspace.root) // ≈ 1.0
+        await viewModel.addFromFiles([wide, tall, square])
+        viewModel.options.format = .pdf
+
+        // Move the first page (wide) to the end → [tall, square, wide].
+        viewModel.moveItems(fromOffsets: IndexSet(integer: 0), toOffset: 3)
+
+        viewModel.convert()
+        await viewModel.conversionTask?.value
+
+        let pdfURL = try #require(viewModel.lastOutputs.first)
+        let document = try #require(CGPDFDocument(pdfURL as CFURL))
+        #expect(document.numberOfPages == 3)
+
+        let aspects = try (1...document.numberOfPages).map { pageIndex -> CGFloat in
+            let box = try #require(document.page(at: pageIndex)).getBoxRect(.mediaBox)
+            return box.width / box.height
+        }
+        #expect(abs(aspects[0] - 0.333) < 0.05) // tall
+        #expect(abs(aspects[1] - 1.0) < 0.05)   // square
+        #expect(abs(aspects[2] - 3.0) < 0.1)    // wide
     }
 }
