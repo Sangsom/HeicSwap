@@ -31,6 +31,7 @@ final class ConvertViewModel {
     private let importService: ImportService
     private let engine: ConversionEngine
     private let pdfBuilder: PDFBuilder
+    private let analytics: any AnalyticsClient
 
     /// The conversion settings the Options sheet (task 5.2) edits and the Convert action (5.3)
     /// reads. Held here — not in the sheet — so choices persist as session defaults across
@@ -39,9 +40,24 @@ final class ConvertViewModel {
         didSet { clearFinishedState() }
     }
 
-    /// The user's current entitlement, which gates the advanced options in the sheet (PRD §6).
-    /// Stubbed `.free`; the entitlement client (task 6.1) will drive this from `PurchaseClient`.
+    /// The user's current entitlement, which gates the advanced options in the sheet (PRD §6) and
+    /// the Convert action (task 6.3). Kept in sync with the app-wide `EntitlementStore` by the view;
+    /// the model reads it as a plain value so the gate logic stays unit-testable.
     var entitlement: Entitlement
+
+    /// The value gate that should present the paywall, or `nil` for no paywall. Drives the
+    /// `.sheet(item:)` in the view (task 6.3): set directly for the Convert gate; for an
+    /// options-sheet gate it's promoted from `stagedTrigger` once that sheet dismisses, so two
+    /// sheets never fight to present at once.
+    var paywallTrigger: ValueGate.Trigger?
+
+    /// A gate captured while the Options sheet is still open, held until that sheet dismisses and
+    /// `presentStagedPaywall()` promotes it to `paywallTrigger`.
+    private var stagedTrigger: ValueGate.Trigger?
+
+    /// The Pro action the user was attempting when the gate blocked them — replayed verbatim once
+    /// they upgrade (task 6.3). `nil` when nothing is pending.
+    private var pendingAction: PendingProAction?
 
     /// The batch Convert lifecycle (task 5.3).
     private(set) var phase: ConversionPhase = .idle
@@ -69,12 +85,22 @@ final class ConvertViewModel {
         importService: ImportService = ImportService(),
         engine: ConversionEngine = ConversionEngine(),
         pdfBuilder: PDFBuilder = PDFBuilder(),
+        analytics: any AnalyticsClient = StubAnalyticsClient(),
         entitlement: Entitlement = .free
     ) {
         self.importService = importService
         self.engine = engine
         self.pdfBuilder = pdfBuilder
+        self.analytics = analytics
         self.entitlement = entitlement
+    }
+
+    /// A Pro action recorded when the value gate blocked it, so it can resume after an upgrade.
+    enum PendingProAction: Equatable {
+        /// The user tapped Convert on a gated run (e.g. a batch over the free limit).
+        case convert
+        /// The user tapped a gated control in the Options sheet; resume by applying these options.
+        case applyOptions(ConversionOptions)
     }
 
     /// Materialized items ready to convert, in import order.
@@ -153,15 +179,97 @@ final class ConvertViewModel {
         importService.move(fromOffsets: source, toOffset: destination)
     }
 
+    // MARK: Value gate → paywall (task 6.3)
+
+    /// The gate a Convert tap would trip for the current user/queue, or `nil` when the run is free
+    /// (or the user is Pro). Pro users never gate; free users gate per `ValueGate`.
+    private var convertGate: ValueGate.Trigger? {
+        guard !entitlement.isPro else { return nil }
+        return ValueGate.proTrigger(items: items, options: options)
+    }
+
+    /// Records a gate hit (logs `pro_gate_hit`) and the action to resume after an upgrade. For the
+    /// Convert gate the paywall is presented immediately; for an options-sheet gate it's staged
+    /// until that sheet dismisses (`presentStagedPaywall()`), so two sheets never collide.
+    private func hitGate(_ trigger: ValueGate.Trigger, resuming action: PendingProAction, staged: Bool) {
+        pendingAction = action
+        analytics.log(.proGateHit(gate: trigger.rawValue))
+        if staged {
+            stagedTrigger = trigger
+        } else {
+            paywallTrigger = trigger
+        }
+    }
+
+    /// Called by the Options sheet when a free user taps a Pro-gated control. Logs the gate and
+    /// records the intended options so they apply after an upgrade; the paywall is presented once
+    /// the Options sheet finishes dismissing.
+    func requestProForOption(_ trigger: ValueGate.Trigger) {
+        hitGate(trigger, resuming: .applyOptions(optionsApplying(trigger)), staged: true)
+    }
+
+    /// Promotes a staged gate to a presented paywall — call from the Options sheet's `onDismiss`.
+    /// No-op when nothing was staged (the sheet was dismissed normally).
+    func presentStagedPaywall() {
+        guard let staged = stagedTrigger else { return }
+        stagedTrigger = nil
+        paywallTrigger = staged
+    }
+
+    /// Called when the paywall dismisses. If the user upgraded, the blocked action resumes (AC2);
+    /// if they dismissed without buying, the pending action is dropped and they stay on the free
+    /// tier (AC3). Reading `entitlement` here relies on the view having synced it from the store
+    /// before the sheet's `onDismiss` fires.
+    func paywallDismissed() {
+        guard let action = pendingAction else { return }
+        pendingAction = nil
+        guard entitlement.isPro else { return }
+        switch action {
+        case .convert:
+            performConvert()
+        case let .applyOptions(options):
+            self.options = options
+        }
+    }
+
+    /// The options a gated control would produce, so the action can replay after upgrade. Strip and
+    /// target-size are the only options gates; the batch gate isn't an options change.
+    private func optionsApplying(_ trigger: ValueGate.Trigger) -> ConversionOptions {
+        var updated = options
+        switch trigger {
+        case .stripMetadata:
+            updated.stripsMetadata = true
+        case .targetSize:
+            updated.resizeMode = .targetBytes(ResizeOption.defaultBytes)
+        case .batchSize:
+            break
+        }
+        return updated
+    }
+
     // MARK: Convert (task 5.3)
 
     /// Runs the on-device engine over the current queue, surfacing each item's completion so its
     /// thumbnail can "develop". Image formats go through `ConversionEngine` (N→N transcode);
     /// `.pdf` goes through `PDFBuilder` (N→1 assembly). A no-op if a run is already in flight or
     /// the queue has nothing convertible.
+    ///
+    /// Gate first (task 6.3): a free user whose run requires Pro is sent to the paywall instead of
+    /// converting, with the run recorded to resume after they upgrade (AC1/AC2).
     func convert() {
         guard !isConverting else { return }
 
+        if let gate = convertGate {
+            hitGate(gate, resuming: .convert, staged: false)
+            return
+        }
+
+        performConvert()
+    }
+
+    /// Runs the conversion unconditionally — the post-gate body of `convert()`, also the resume
+    /// path after a successful upgrade.
+    private func performConvert() {
         // Pair each file-backed item with its id, preserving order, so the engine's per-item index
         // maps back to the right thumbnail. (Every imported item materializes to a file today; the
         // `.photoLibraryAsset` case is a placeholder and is simply skipped here.)

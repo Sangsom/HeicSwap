@@ -9,7 +9,11 @@
 //  mapping lives here so the SDK stays sealed behind this boundary.
 //
 //  Dashboard setup (App Store Connect + RevenueCat — sandbox now, live in task 11.1):
-//    • Entitlement: "pro" — granted by all three products.
+//    • Entitlement: "HeicSwap Pro" — granted by all three products. This is the entitlement
+//      *identifier* as configured in the RevenueCat dashboard (verified against
+//      /v1/product_entitlement_mapping); `entitlementIdentifier` below must match it exactly,
+//      since `customerInfo.entitlements` is keyed by identifier. (If the dashboard entitlement is
+//      ever renamed to a cleaner id like "pro", update the default below to match.)
 //    • Offering "default" (current) with three packages:
 //        – Annual   ($9.99/yr)   → package type Annual
 //        – Weekly   ($1.99/wk)   → package type Weekly
@@ -30,7 +34,7 @@ final class PurchaseService: PurchaseClient {
     /// so `purchase(_:)` can recover the SDK package for an app-domain `PurchaseProduct`.
     private var packagesByProductID: [String: Package] = [:]
 
-    init(entitlementIdentifier: String = "pro") {
+    init(entitlementIdentifier: String = "HeicSwap Pro") {
         self.entitlementIdentifier = entitlementIdentifier
     }
 

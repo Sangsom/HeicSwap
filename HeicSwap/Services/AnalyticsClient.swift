@@ -17,6 +17,9 @@ enum AnalyticsEvent {
     case onboardingStarted
     case tabSelected(tab: String)
     case screenViewed(screen: String)
+    /// A free user hit a value gate and was shown the paywall (task 6.3). `gate` is the
+    /// `ValueGate.Trigger` raw value (`batch_size` / `target_size` / `strip_metadata`).
+    case proGateHit(gate: String)
     case premiumPurchased(source: String)
     case premiumRestored
 
@@ -25,6 +28,7 @@ enum AnalyticsEvent {
         case .onboardingStarted: return "onboarding_started"
         case .tabSelected: return "tab_selected"
         case .screenViewed: return "screen_viewed"
+        case .proGateHit: return "pro_gate_hit"
         case .premiumPurchased: return "premium_purchased"
         case .premiumRestored: return "premium_restored"
         }
@@ -36,6 +40,8 @@ enum AnalyticsEvent {
             return ["tab": tab]
         case .screenViewed(let screen):
             return ["screen": screen]
+        case .proGateHit(let gate):
+            return ["gate": gate]
         case .premiumPurchased(let source):
             return ["source": source]
         case .premiumRestored, .onboardingStarted:

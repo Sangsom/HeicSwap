@@ -49,23 +49,54 @@ private func makeImage(named name: String, width: Int = 64, height: Int = 48, in
     return url
 }
 
+// MARK: - Spy
+
+/// Records the analytics events the view model emits, so the value-gate hit (`pro_gate_hit`) can be
+/// asserted without a real backend (task 6.3).
+@MainActor
+private final class SpyAnalyticsClient: AnalyticsClient {
+    private(set) var events: [(name: String, parameters: [String: Any]?)] = []
+
+    func logEvent(_ name: String, parameters: [String: Any]?) {
+        events.append((name, parameters))
+    }
+
+    /// The `gate` parameter of the most recent `pro_gate_hit`, if any.
+    var lastGateHit: String? {
+        events.last { $0.name == "pro_gate_hit" }?.parameters?["gate"] as? String
+    }
+
+    var gateHitCount: Int { events.filter { $0.name == "pro_gate_hit" }.count }
+}
+
 // MARK: - Tests
 
 @MainActor
 struct ConvertViewModelTests {
 
     /// A view model whose import / engine / PDF outputs all live under one workspace.
-    private func makeViewModel(in workspace: Workspace) -> ConvertViewModel {
+    private func makeViewModel(
+        in workspace: Workspace,
+        analytics: any AnalyticsClient = StubAnalyticsClient(),
+        entitlement: Entitlement = .free
+    ) -> ConvertViewModel {
         ConvertViewModel(
             importService: ImportService(rootDirectory: workspace.root.appending(path: "imports")),
             engine: ConversionEngine(outputDirectory: workspace.root.appending(path: "engine")),
-            pdfBuilder: PDFBuilder(outputDirectory: workspace.root.appending(path: "pdf"))
+            pdfBuilder: PDFBuilder(outputDirectory: workspace.root.appending(path: "pdf")),
+            analytics: analytics,
+            entitlement: entitlement
         )
     }
 
     /// Imports `count` fresh PNGs into the queue and returns the view model.
-    private func makeViewModelWithQueue(_ count: Int, in workspace: Workspace) async throws -> ConvertViewModel {
-        let viewModel = makeViewModel(in: workspace)
+    private func makeViewModelWithQueue(
+        _ count: Int,
+        in workspace: Workspace,
+        analytics: any AnalyticsClient = StubAnalyticsClient(),
+        entitlement: Entitlement = .free
+    ) async throws -> ConvertViewModel {
+        let viewModel = makeViewModel(in: workspace, analytics: analytics, entitlement: entitlement)
         let urls = try (0..<count).map { try makeImage(named: "img-\($0).png", in: workspace.root) }
         await viewModel.addFromFiles(urls)
         #expect(viewModel.items.count == count)
@@ -234,5 +265,134 @@ struct ConvertViewModelTests {
         #expect(abs(aspects[0] - 0.333) < 0.05) // tall
         #expect(abs(aspects[1] - 1.0) < 0.05)   // square
         #expect(abs(aspects[2] - 3.0) < 0.1)    // wide
+    }
+
+    // MARK: Value gate → paywall (task 6.3)
+
+    @Test("AC1: a free user converting over the free limit hits the paywall (batch_size) instead of converting")
+    func gatedConvertPresentsPaywall() async throws {
+        let workspace = try Workspace()
+        let analytics = SpyAnalyticsClient()
+        let viewModel = try await makeViewModelWithQueue(
+            ValueGate.freeBatchLimit + 1, in: workspace, analytics: analytics, entitlement: .free
+        )
+
+        viewModel.convert()
+
+        #expect(viewModel.paywallTrigger == .batchSize)
+        #expect(viewModel.conversionTask == nil) // nothing ran
+        #expect(viewModel.phase == .idle)
+        #expect(analytics.lastGateHit == "batch_size")
+    }
+
+    @Test("AC2: purchasing from the gate resumes the blocked conversion on dismiss")
+    func purchaseResumesConversion() async throws {
+        let workspace = try Workspace()
+        let count = ValueGate.freeBatchLimit + 1
+        let viewModel = try await makeViewModelWithQueue(count, in: workspace, entitlement: .free)
+        let ids = Set(viewModel.items.map(\.id))
+
+        viewModel.convert()
+        #expect(viewModel.paywallTrigger == .batchSize)
+
+        // The view syncs the upgraded entitlement and clears the sheet binding before onDismiss.
+        viewModel.entitlement = .pro
+        viewModel.paywallTrigger = nil
+        viewModel.paywallDismissed()
+
+        await viewModel.conversionTask?.value
+        #expect(viewModel.phase == .finished(successCount: count, failureCount: 0))
+        #expect(viewModel.developedItemIDs == ids)
+        #expect(viewModel.lastOutputs.count == count)
+    }
+
+    @Test("AC3: dismissing the gate without buying keeps the free tier and a within-limit run still converts")
+    func dismissKeepsFreeTier() async throws {
+        let workspace = try Workspace()
+        let viewModel = try await makeViewModelWithQueue(
+            ValueGate.freeBatchLimit + 1, in: workspace, entitlement: .free
+        )
+
+        viewModel.convert()
+        #expect(viewModel.paywallTrigger == .batchSize)
+
+        // Dismiss without buying — still free.
+        viewModel.paywallTrigger = nil
+        viewModel.paywallDismissed()
+        #expect(viewModel.conversionTask == nil)
+        #expect(viewModel.phase == .idle)
+
+        // Drop back within the free limit and convert — no gate this time.
+        let firstID = try #require(viewModel.items.first?.id)
+        viewModel.remove(firstID)
+        #expect(viewModel.items.count == ValueGate.freeBatchLimit)
+
+        viewModel.convert()
+        #expect(viewModel.paywallTrigger == nil)
+        await viewModel.conversionTask?.value
+        #expect(viewModel.phase == .finished(successCount: ValueGate.freeBatchLimit, failureCount: 0))
+    }
+
+    @Test("A Pro user converts a large batch without hitting the gate")
+    func proUserSkipsGate() async throws {
+        let workspace = try Workspace()
+        let count = ValueGate.freeBatchLimit + 3
+        let viewModel = try await makeViewModelWithQueue(count, in: workspace, entitlement: .pro)
+
+        viewModel.convert()
+
+        #expect(viewModel.paywallTrigger == nil)
+        await viewModel.conversionTask?.value
+        #expect(viewModel.phase == .finished(successCount: count, failureCount: 0))
+    }
+
+    @Test("An options gate stages the paywall until the Options sheet dismisses, then resumes on purchase", arguments: [
+        ValueGate.Trigger.stripMetadata,
+        ValueGate.Trigger.targetSize,
+    ])
+    func optionsGateStagesAndResumes(trigger: ValueGate.Trigger) async throws {
+        let workspace = try Workspace()
+        let analytics = SpyAnalyticsClient()
+        let viewModel = try await makeViewModelWithQueue(2, in: workspace, analytics: analytics, entitlement: .free)
+
+        // Tap a locked control in the Options sheet: logs the gate, stages (no paywall yet).
+        viewModel.requestProForOption(trigger)
+        #expect(analytics.lastGateHit == trigger.rawValue)
+        #expect(viewModel.paywallTrigger == nil) // staged behind the still-open Options sheet
+
+        // Options sheet dismisses → paywall presents.
+        viewModel.presentStagedPaywall()
+        #expect(viewModel.paywallTrigger == trigger)
+
+        // Purchase → the originally-tapped option is applied on dismiss.
+        viewModel.entitlement = .pro
+        viewModel.paywallTrigger = nil
+        viewModel.paywallDismissed()
+
+        switch trigger {
+        case .stripMetadata:
+            #expect(viewModel.options.stripsMetadata)
+        case .targetSize:
+            #expect(viewModel.options.resizeMode == .targetBytes(ResizeOption.defaultBytes))
+        case .batchSize:
+            Issue.record("batch size is not an options gate")
+        }
+    }
+
+    @Test("Dismissing an options gate without buying leaves options unchanged")
+    func optionsGateDismissLeavesOptionsUnchanged() async throws {
+        let workspace = try Workspace()
+        let viewModel = try await makeViewModelWithQueue(2, in: workspace, entitlement: .free)
+        let before = viewModel.options
+
+        viewModel.requestProForOption(.stripMetadata)
+        viewModel.presentStagedPaywall()
+
+        // Dismiss without buying.
+        viewModel.paywallTrigger = nil
+        viewModel.paywallDismissed()
+
+        #expect(viewModel.options == before)
+        #expect(viewModel.options.stripsMetadata == false)
     }
 }

@@ -75,6 +75,9 @@
             ReferencedContainer = "container:HeicSwap.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <StoreKitConfigurationFileReference
+         identifier = "../../HeicSwap/Resources/StoreKit.storekit">
+      </StoreKitConfigurationFileReference>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"

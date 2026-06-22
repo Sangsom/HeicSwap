@@ -19,8 +19,9 @@ import SwiftUI
 struct ConversionOptionsSheet: View {
     @Binding var options: ConversionOptions
     let entitlement: Entitlement
-    /// Invoked when a free user taps a Pro-gated control. Wired to the paywall in task 6.2.
-    var onProLockTapped: () -> Void = {}
+    /// Invoked when a free user taps a Pro-gated control, carrying the specific gate they hit so the
+    /// paywall (task 6.3) can record the trigger and resume the action after an upgrade.
+    var onProLockTapped: (ValueGate.Trigger) -> Void = { _ in }
 
     @Environment(\.dismiss) private var dismiss
 
@@ -32,7 +33,7 @@ struct ConversionOptionsSheet: View {
     init(
         options: Binding<ConversionOptions>,
         entitlement: Entitlement,
-        onProLockTapped: @escaping () -> Void = {}
+        onProLockTapped: @escaping (ValueGate.Trigger) -> Void = { _ in }
     ) {
         _options = options
         self.entitlement = entitlement
@@ -167,7 +168,7 @@ struct ConversionOptionsSheet: View {
 
     private func selectResize(_ option: ResizeOption) {
         if option.requiresPro && !isPro {
-            onProLockTapped()
+            onProLockTapped(.targetSize)
             return
         }
         options.resizeMode = option.mode(pixels: pixels, bytes: bytes)
@@ -201,8 +202,10 @@ struct ConversionOptionsSheet: View {
                 }
                 .tint(Theme.Colors.accent)
             } else {
-                // Locked: tapping routes to the paywall (task 6.2) rather than enabling the toggle.
-                Button(action: onProLockTapped) {
+                // Locked: tapping routes to the paywall (task 6.3) rather than enabling the toggle.
+                Button {
+                    onProLockTapped(.stripMetadata)
+                } label: {
                     HStack {
                         stripLabel
                         Spacer()

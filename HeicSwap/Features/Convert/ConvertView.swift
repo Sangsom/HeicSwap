@@ -116,6 +116,8 @@ private struct ConvertQueueContent: View {
     @Bindable var viewModel: ConvertViewModel
     @Binding var isGridExpanded: Bool
 
+    @Environment(\.entitlementStore) private var entitlementStore
+
     @State private var isOptionsPresented = false
     @State private var isResultsPresented = false
     @State private var isArrangePresented = false
@@ -171,8 +173,23 @@ private struct ConvertQueueContent: View {
             .padding(.bottom, Theme.Spacing.majorBreak)
             .animation(.snappy, value: viewModel.canReorderForPDF)
         }
-        .sheet(isPresented: $isOptionsPresented) {
-            ConversionOptionsSheet(options: $viewModel.options, entitlement: viewModel.entitlement)
+        // Keep the model's entitlement in lockstep with the app-wide store, so the gate (task 6.3)
+        // and the options-sheet locks read the live Pro state — including a Pro user at launch.
+        .onChange(of: entitlementStore.entitlement, initial: true) { _, entitlement in
+            viewModel.entitlement = entitlement
+        }
+        .sheet(isPresented: $isOptionsPresented, onDismiss: viewModel.presentStagedPaywall) {
+            ConversionOptionsSheet(
+                options: $viewModel.options,
+                entitlement: viewModel.entitlement,
+                onProLockTapped: { trigger in
+                    viewModel.requestProForOption(trigger)
+                    isOptionsPresented = false
+                }
+            )
+        }
+        .sheet(item: $viewModel.paywallTrigger, onDismiss: paywallDismissed) { _ in
+            PaywallSheet()
         }
         .sheet(isPresented: $isArrangePresented) {
             ArrangePagesSheet(viewModel: viewModel)
@@ -192,6 +209,13 @@ private struct ConvertQueueContent: View {
                 isResultsPresented = true
             }
         }
+    }
+
+    /// On paywall dismissal, sync the freshest entitlement from the store (a purchase mutates it),
+    /// then let the model resume the blocked action if the user upgraded (AC2), or stay free (AC3).
+    private func paywallDismissed() {
+        viewModel.entitlement = entitlementStore.entitlement
+        viewModel.paywallDismissed()
     }
 
     /// Expands the grid so every thumbnail is on screen to "develop", then starts the run.
