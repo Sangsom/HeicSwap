@@ -17,11 +17,18 @@ struct RootView: View {
     let convertViewModel: ConvertViewModel
 
     @AppStorage(Onboarding.hasOnboardedKey) private var hasOnboarded = false
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         ConvertView(viewModel: convertViewModel)
             .fullScreenCover(isPresented: isOnboardingPresented) {
                 OnboardingView()
+            }
+            // Reclaim disposable temp files as soon as the app leaves the foreground (task 10.3).
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .background {
+                    convertViewModel.applicationDidEnterBackground()
+                }
             }
     }
 

@@ -49,6 +49,12 @@ final class AppState {
     /// configuration stays off the launch critical path. The entitlement refresh runs after the
     /// SDKs are configured; the store already reflects the cached entitlement from its init (AC3).
     func loadInitialState() async {
+        // Reclaim any temp files a previous (possibly killed) session left behind. Detached and off
+        // the main actor so it never touches the launch critical path (task 10.3); this runs after
+        // the first frame and the queue is always empty this early in a fresh process, so wiping the
+        // whole workspace is safe.
+        Task.detached(priority: .utility) { TempWorkspace.purgeAll() }
+
         analyticsClient.configure()
         analyticsClient.log(.appLaunched(isFirstLaunch: consumeIsFirstLaunch()))
         metricKitReporter.start()

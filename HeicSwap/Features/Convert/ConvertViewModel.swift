@@ -179,12 +179,15 @@ final class ConvertViewModel {
         importService.remove(id)
     }
 
-    /// Empties the entire queue.
+    /// Empties the entire queue and reclaims its temp files — the last run's outputs and every
+    /// imported original are unreachable once the queue is cleared, so both are purged (task 10.3).
     func clearAll() {
+        purgeLastOutputs()
         importService.removeAll()
         phase = .idle
         developedItemIDs = []
         lastResults = []
+        Task.detached(priority: .utility) { TempWorkspace.purgeImports() }
     }
 
     /// Dismisses the skipped-items note.
@@ -200,6 +203,35 @@ final class ConvertViewModel {
     func moveItems(fromOffsets source: IndexSet, toOffset destination: Int) {
         clearFinishedState()
         importService.move(fromOffsets: source, toOffset: destination)
+    }
+
+    // MARK: Temp cleanup (task 10.3)
+
+    /// Reclaims the most recent run's output files once they're no longer reachable — a new run is
+    /// starting, the queue was cleared, or the app went to the background. Each run wrote into its
+    /// own per-run directory, so removing just those directories frees the disk without touching a
+    /// live run. The file IO runs off the main actor.
+    private func purgeLastOutputs() {
+        let runDirectories = Set(lastResults.map { $0.outputURL.deletingLastPathComponent() })
+        guard !runDirectories.isEmpty else { return }
+        Task.detached(priority: .utility) {
+            for directory in runDirectories { TempWorkspace.removeTree(at: directory) }
+        }
+    }
+
+    /// Reclaims disposable temp files when the app is backgrounded (task 10.3, AC2). A finished
+    /// run's outputs have already been offered for Save/Share, so they're purged and the completion
+    /// state is cleared (its results would otherwise dangle, pointing at deleted files). A run in
+    /// flight owns its output directory, so it's left untouched; the live queue's imported originals
+    /// are kept so a resumed session can still convert them.
+    func applicationDidEnterBackground() {
+        guard !isConverting else { return }
+        purgeLastOutputs()
+        if case .finished = phase {
+            phase = .idle
+            developedItemIDs = []
+            lastResults = []
+        }
     }
 
     // MARK: Value gate → paywall (task 6.3)
@@ -312,6 +344,10 @@ final class ConvertViewModel {
         let ids = convertible.map(\.id)
         let urls = convertible.map(\.url)
         let options = self.options
+
+        // A new run supersedes the previous one's outputs — reclaim them before this run writes
+        // (task 10.3). They're in their own per-run directories, so this can't touch the new run.
+        purgeLastOutputs()
 
         developedItemIDs = []
         lastResults = []

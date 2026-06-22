@@ -80,16 +80,13 @@ actor ConversionEngine {
     /// full-quality probe runs first as a fast path, so the worst case is one encode more.
     static let maxQualitySearchIterations = 8
 
-    /// Root directory outputs are written under. Each run gets a unique subdirectory inside
-    /// it. Defaults to a dedicated folder in the system temporary directory; temp-file
-    /// purging is handled in task 10.3.
+    /// Root directory outputs are written under. Each run gets a unique subdirectory inside it.
+    /// Defaults to the shared `TempWorkspace`, which owns the temp layout and its deterministic
+    /// purge (task 10.3).
     private let outputDirectory: URL
 
     init(outputDirectory: URL? = nil) {
-        self.outputDirectory = outputDirectory
-            ?? FileManager.default.temporaryDirectory.appending(
-                path: "ConversionEngine", directoryHint: .isDirectory
-            )
+        self.outputDirectory = outputDirectory ?? TempWorkspace.conversionOutputsRoot
     }
 
     // MARK: Single

@@ -99,10 +99,9 @@ final class ImportService {
         rootDirectory: URL? = nil,
         supportedContentTypes: [UTType] = ImportService.supportedContentTypes
     ) {
-        let root = rootDirectory
-            ?? FileManager.default.temporaryDirectory.appending(
-                path: "Imports", directoryHint: .isDirectory
-            )
+        // Defaults to the shared `TempWorkspace`, which owns the temp layout and its deterministic
+        // purge (task 10.3).
+        let root = rootDirectory ?? TempWorkspace.importsRoot
         self.photoLoader = PhotoOriginalLoader(
             rootDirectory: root, supportedContentTypes: supportedContentTypes
         )
