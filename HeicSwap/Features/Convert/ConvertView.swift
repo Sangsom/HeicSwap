@@ -19,6 +19,11 @@ struct ConvertView: View {
     @State private var path: [ConvertRoute] = []
     @State private var isGridExpanded = false
 
+    /// The persisted conversion defaults (task 8.1). The view model is seeded from these at launch;
+    /// here we mirror later changes — made in Settings — into the live session options so a changed
+    /// default is reflected the next time the Options sheet opens (AC1).
+    @Environment(\.conversionDefaults) private var conversionDefaults
+
     /// View model injected via the initializer (default-constructed for the app and previews).
     init(viewModel: ConvertViewModel = ConvertViewModel()) {
         _viewModel = State(initialValue: viewModel)
@@ -45,6 +50,17 @@ struct ConvertView: View {
                 }
             }
         }
+        // Mirror each persisted default into the live session options as it changes in Settings —
+        // per field, so a default change never clobbers an unrelated in-session choice (AC1).
+        .onChange(of: conversionDefaults.format) { _, format in
+            viewModel.options.format = format
+        }
+        .onChange(of: conversionDefaults.quality) { _, quality in
+            viewModel.options.quality = quality
+        }
+        .onChange(of: conversionDefaults.stripsMetadata) { _, stripsMetadata in
+            viewModel.options.stripsMetadata = stripsMetadata
+        }
     }
 
     @ToolbarContentBuilder private var toolbarContent: some ToolbarContent {
@@ -59,10 +75,16 @@ struct ConvertView: View {
         if !viewModel.isEmpty {
             ToolbarItemGroup(placement: .bottomBar) {
                 PhotosImportButton(onPick: addPhotos)
+                    .disabled(viewModel.isConverting)
                 Spacer()
                 FilesImportButton(onPick: addFiles)
+                    .disabled(viewModel.isConverting)
                 Spacer()
                 Button(role: .destructive) {
+                    // Clearing the whole queue is the destructive action the spec marks `.warning`
+                    // (§4). "Convert more" also empties the queue but is a positive outcome, so the
+                    // haptic lives here at the destructive call site, not inside `clearAll()`.
+                    Haptics.destructive()
                     withAnimation(.snappy) {
                         viewModel.clearAll()
                         isGridExpanded = false
@@ -70,6 +92,7 @@ struct ConvertView: View {
                 } label: {
                     Label("Clear All", systemImage: "trash")
                 }
+                .disabled(viewModel.isConverting)
             }
         }
     }
@@ -101,16 +124,29 @@ private struct ConvertHeader: View {
             Text("Convert")
                 .font(Theme.Typography.largeTitle)
                 .foregroundStyle(Theme.Colors.textPrimary)
+                .accessibilityAddTraits(.isHeader)
         }
     }
 }
 
 // MARK: - Loaded queue
 
-/// The populated state: the thumbnail grid plus any in-flight / skipped import status.
+/// The populated state: the thumbnail grid, the output-options row that presents the sheet, plus
+/// any in-flight / skipped import status.
 private struct ConvertQueueContent: View {
-    let viewModel: ConvertViewModel
+    @Bindable var viewModel: ConvertViewModel
     @Binding var isGridExpanded: Bool
+
+    @Environment(\.entitlementStore) private var entitlementStore
+
+    @State private var isOptionsPresented = false
+    @State private var isResultsPresented = false
+    @State private var isArrangePresented = false
+
+    /// Items the just-finished run couldn't convert — surfaced in the Results sheet footnote.
+    private var failureCount: Int {
+        if case let .finished(_, failures) = viewModel.phase { failures } else { 0 }
+    }
 
     var body: some View {
         ScrollView {
@@ -121,9 +157,33 @@ private struct ConvertQueueContent: View {
                     ImportingBanner()
                 }
 
-                QueueGridView(items: viewModel.items, isExpanded: $isGridExpanded) { id in
+                QueueGridView(
+                    items: viewModel.items,
+                    isExpanded: $isGridExpanded,
+                    isConverting: viewModel.isConverting,
+                    developedItemIDs: viewModel.developedItemIDs
+                ) { id in
                     viewModel.remove(id)
                 }
+
+                OptionsSummaryRow(options: viewModel.options) {
+                    isOptionsPresented = true
+                }
+                .disabled(viewModel.isConverting)
+
+                if viewModel.canReorderForPDF {
+                    ArrangePagesRow(pageCount: viewModel.items.count) {
+                        isArrangePresented = true
+                    }
+                    .disabled(viewModel.isConverting)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+
+                ConvertActionSection(
+                    viewModel: viewModel,
+                    onConvert: startConvert,
+                    onShowResults: { isResultsPresented = true }
+                )
 
                 if !viewModel.skipped.isEmpty {
                     SkippedBanner(onDismiss: viewModel.clearSkipped)
@@ -132,7 +192,312 @@ private struct ConvertQueueContent: View {
             .padding(.horizontal, Theme.Spacing.section)
             .padding(.top, Theme.Spacing.section)
             .padding(.bottom, Theme.Spacing.majorBreak)
+            .animation(.snappy, value: viewModel.canReorderForPDF)
         }
+        // Keep the model's entitlement in lockstep with the app-wide store, so the gate (task 6.3)
+        // and the options-sheet locks read the live Pro state — including a Pro user at launch.
+        .onChange(of: entitlementStore.entitlement, initial: true) { _, entitlement in
+            viewModel.entitlement = entitlement
+        }
+        .sheet(isPresented: $isOptionsPresented, onDismiss: viewModel.presentStagedPaywall) {
+            ConversionOptionsSheet(
+                options: $viewModel.options,
+                entitlement: viewModel.entitlement,
+                onProLockTapped: { trigger in
+                    viewModel.requestProForOption(trigger)
+                    isOptionsPresented = false
+                }
+            )
+        }
+        .sheet(item: $viewModel.paywallTrigger, onDismiss: paywallDismissed) { trigger in
+            PaywallSheet(trigger: trigger.rawValue)
+        }
+        .sheet(isPresented: $isArrangePresented) {
+            ArrangePagesSheet(viewModel: viewModel)
+        }
+        .sheet(isPresented: $isResultsPresented) {
+            ResultsSheet(
+                results: viewModel.lastResults,
+                failureCount: failureCount,
+                onConvertMore: convertMore
+            )
+        }
+        // Surface the Results sheet automatically the moment a run finishes with at least one
+        // converted output — "one tap from done" (the tap was Convert).
+        .onChange(of: viewModel.phase) { _, newPhase in
+            if case let .finished(successCount, _) = newPhase,
+               successCount > 0, !viewModel.lastResults.isEmpty {
+                isResultsPresented = true
+            }
+        }
+    }
+
+    /// On paywall dismissal, sync the freshest entitlement from the store (a purchase mutates it),
+    /// then let the model resume the blocked action if the user upgraded (AC2), or stay free (AC3).
+    private func paywallDismissed() {
+        viewModel.entitlement = entitlementStore.entitlement
+        viewModel.paywallDismissed()
+    }
+
+    /// Expands the grid so every thumbnail is on screen to "develop", then starts the run.
+    private func startConvert() {
+        withAnimation(.snappy) { isGridExpanded = true }
+        viewModel.convert()
+    }
+
+    /// Clears the finished batch so the screen returns to a fresh, empty queue for the next run.
+    private func convertMore() {
+        withAnimation(.snappy) {
+            viewModel.clearAll()
+            isGridExpanded = false
+        }
+    }
+}
+
+// MARK: - Convert action
+
+/// The primary Convert action below the options row: the CTA when idle, a live progress bar with
+/// Cancel while converting, and a completion banner (plus a re-convert CTA) when finished (task 5.3).
+private struct ConvertActionSection: View {
+    @Bindable var viewModel: ConvertViewModel
+    let onConvert: () -> Void
+    /// Re-opens the Results sheet (it auto-presents on completion; this is for after a dismiss).
+    let onShowResults: () -> Void
+
+    var body: some View {
+        switch viewModel.phase {
+        case .idle:
+            convertButton
+        case .converting:
+            ConvertingProgress(
+                converted: viewModel.convertedCount,
+                total: viewModel.conversionTotal,
+                onCancel: viewModel.cancelConversion
+            )
+        case let .finished(successCount, failureCount):
+            VStack(spacing: Theme.Spacing.item) {
+                ConvertedBanner(
+                    successCount: successCount,
+                    failureCount: failureCount,
+                    onTap: successCount > 0 ? onShowResults : nil
+                )
+                convertButton
+            }
+        }
+    }
+
+    @ViewBuilder private var convertButton: some View {
+        if !viewModel.items.isEmpty {
+            ConvertButton(
+                count: viewModel.items.count,
+                format: viewModel.options.format,
+                action: onConvert
+            )
+        }
+    }
+}
+
+/// The amber "Convert" CTA — dark ink on safelight amber, full-width capsule.
+private struct ConvertButton: View {
+    let count: Int
+    let format: OutputFormat
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(Theme.Typography.headline)
+                .foregroundStyle(Theme.Colors.onAccent)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, Theme.Spacing.item)
+                .background(Theme.Colors.accent, in: Capsule())
+        }
+        .accessibilityLabel(Text(title))
+    }
+
+    private var title: String {
+        if format == .pdf {
+            return count == 1
+                ? String(localized: "Make a PDF")
+                : String(localized: "Combine \(count) into a PDF")
+        }
+        return count == 1
+            ? String(localized: "Convert 1 photo")
+            : String(localized: "Convert \(count) photos")
+    }
+}
+
+/// The live "developing" state: how many of how many have finished, a determinate bar, and Cancel.
+private struct ConvertingProgress: View {
+    let converted: Int
+    let total: Int
+    let onCancel: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.small) {
+            HStack {
+                Text("Developing… \(converted) of \(total)")
+                    .font(Theme.Typography.headline)
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                    // The progress text carries the count for VoiceOver; the bar below is hidden so
+                    // it isn't announced twice. Cancel stays a separate, directly-focusable button.
+                    .accessibilityLabel(Text(String(localized: "Converting")))
+                    .accessibilityValue(Text(String(localized: "\(converted) of \(total) done")))
+                Spacer()
+                Button(role: .cancel, action: onCancel) {
+                    Text("Cancel")
+                        .font(Theme.Typography.callout)
+                        .foregroundStyle(Theme.Colors.accent)
+                        .frame(minWidth: 44, minHeight: 44, alignment: .trailing)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel(Text(String(localized: "Cancel conversion")))
+            }
+            ProgressView(value: Double(converted), total: Double(max(total, 1)))
+                .tint(Theme.Colors.accent)
+                .accessibilityHidden(true)
+        }
+        .padding(Theme.Spacing.item)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background {
+            RoundedRectangle(cornerRadius: Theme.Radius.input)
+                .fill(Theme.Colors.surface)
+        }
+    }
+}
+
+/// Completion confirmation after a run finishes. When `onTap` is set, the whole banner re-opens the
+/// Results sheet (task 5.4) to Save or Share — the sheet also auto-presents the moment a run ends.
+private struct ConvertedBanner: View {
+    let successCount: Int
+    let failureCount: Int
+    var onTap: (() -> Void)? = nil
+
+    var body: some View {
+        if let onTap {
+            Button(action: onTap) { banner }
+                .buttonStyle(.plain)
+                .accessibilityHint(Text(String(localized: "Opens results to save or share")))
+        } else {
+            banner
+        }
+    }
+
+    private var banner: some View {
+        HStack(spacing: Theme.Spacing.item) {
+            Image(systemName: "checkmark.seal.fill")
+                .foregroundStyle(Theme.Colors.success)
+            Text(message)
+                .font(Theme.Typography.subheadline)
+                .foregroundStyle(Theme.Colors.textPrimary)
+            Spacer()
+            if onTap != nil {
+                Image(systemName: "square.and.arrow.up")
+                    .foregroundStyle(Theme.Colors.accent)
+            }
+        }
+        .padding(Theme.Spacing.item)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .background {
+            RoundedRectangle(cornerRadius: Theme.Radius.input)
+                .fill(Theme.Colors.surface)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var message: String {
+        if failureCount > 0 {
+            return String(localized: "Converted \(successCount), \(failureCount) couldn't be converted")
+        }
+        return successCount == 1
+            ? String(localized: "Converted 1 photo")
+            : String(localized: "Converted \(successCount) photos")
+    }
+}
+
+// MARK: - Options summary row
+
+/// The tappable "Output" row beneath the grid: a glance at the current conversion settings and the
+/// entry point to the Options sheet (task 5.2).
+private struct OptionsSummaryRow: View {
+    let options: ConversionOptions
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: Theme.Spacing.item) {
+                Image(systemName: "slider.horizontal.3")
+                    .foregroundStyle(Theme.Colors.accent)
+                VStack(alignment: .leading, spacing: Theme.Spacing.tight) {
+                    Text("Output")
+                        .font(Theme.Typography.footnote)
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                    Text(OptionsSummary.text(for: options))
+                        .font(Theme.Typography.headline)
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+            .padding(Theme.Spacing.item)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .background {
+                RoundedRectangle(cornerRadius: Theme.Radius.input)
+                    .fill(Theme.Colors.surface)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(String(localized: "Output options")))
+        .accessibilityValue(Text(OptionsSummary.text(for: options)))
+        .accessibilityHint(Text(String(localized: "Choose format, quality, resize, and metadata")))
+    }
+}
+
+// MARK: - Arrange pages row
+
+/// The entry point to drag-to-reorder PDF pages (task 5.5), shown beneath the options row only when
+/// the target is a multi-page PDF. Surfaces the PDF path prominently — when you're combining photos
+/// into a PDF, arranging their order is one tap away.
+private struct ArrangePagesRow: View {
+    let pageCount: Int
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: Theme.Spacing.item) {
+                Image(systemName: "list.number")
+                    .foregroundStyle(Theme.Colors.accent)
+                VStack(alignment: .leading, spacing: Theme.Spacing.tight) {
+                    Text("PDF pages")
+                        .font(Theme.Typography.footnote)
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                    Text("Arrange \(pageCount) pages")
+                        .font(Theme.Typography.headline)
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+            .padding(Theme.Spacing.item)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .background {
+                RoundedRectangle(cornerRadius: Theme.Radius.input)
+                    .fill(Theme.Colors.surface)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(String(localized: "Arrange PDF pages")))
+        .accessibilityValue(Text(String(localized: "\(pageCount) pages")))
+        .accessibilityHint(Text(String(localized: "Drag to reorder pages before export")))
     }
 }
 
@@ -149,14 +514,24 @@ private struct ConvertEmptyState: View {
     @State private var isPhotosPickerPresented = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.section) {
-            ConvertHeader()
-            invitation
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Scrollable so the invitation and add buttons never clip at the largest Dynamic Type
+        // sizes (Accessibility XXL). The balanced spacers keep it visually centered when it fits
+        // and collapse to let it scroll when it doesn't.
+        GeometryReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    ConvertHeader()
+                    Spacer(minLength: Theme.Spacing.sectionGap)
+                    invitation
+                        .frame(maxWidth: .infinity)
+                    Spacer(minLength: Theme.Spacing.sectionGap)
+                }
+                .padding(.horizontal, Theme.Spacing.section)
+                .padding(.top, Theme.Spacing.section)
+                .frame(minHeight: proxy.size.height, alignment: .top)
+            }
+            .scrollBounceBehavior(.basedOnSize)
         }
-        .padding(.horizontal, Theme.Spacing.section)
-        .padding(.top, Theme.Spacing.section)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private var invitation: some View {
@@ -252,13 +627,18 @@ private struct SkippedBanner: View {
         HStack(spacing: Theme.Spacing.item) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(Theme.Colors.destructive)
+                .accessibilityHidden(true)
             Text("Some items couldn't be added — they aren't supported images.")
                 .font(Theme.Typography.footnote)
                 .foregroundStyle(Theme.Colors.textPrimary)
             Spacer()
-            Button("Dismiss", action: onDismiss)
-                .font(Theme.Typography.footnote)
-                .foregroundStyle(Theme.Colors.accent)
+            Button(action: onDismiss) {
+                Text("Dismiss")
+                    .font(Theme.Typography.footnote)
+                    .foregroundStyle(Theme.Colors.accent)
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+            }
         }
         .padding(Theme.Spacing.item)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -291,4 +671,18 @@ private struct SkippedBanner: View {
     ConvertEmptyState(onAddPhotos: { _ in }, onAddFiles: { _ in })
         .background(Theme.Colors.background)
         .preferredColorScheme(.dark)
+}
+
+// The three Convert action states (task 5.3), stacked for a quick Light/Dark + Dynamic Type check.
+#Preview("Convert action states") {
+    VStack(spacing: Theme.Spacing.sectionGap) {
+        ConvertButton(count: 12, format: .jpg, action: {})
+        ConvertButton(count: 8, format: .pdf, action: {})
+        ConvertingProgress(converted: 7, total: 12, onCancel: {})
+        ConvertedBanner(successCount: 12, failureCount: 0)
+        ConvertedBanner(successCount: 10, failureCount: 2)
+    }
+    .padding(Theme.Spacing.section)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .background(Theme.Colors.background)
 }

@@ -99,10 +99,9 @@ final class ImportService {
         rootDirectory: URL? = nil,
         supportedContentTypes: [UTType] = ImportService.supportedContentTypes
     ) {
-        let root = rootDirectory
-            ?? FileManager.default.temporaryDirectory.appending(
-                path: "Imports", directoryHint: .isDirectory
-            )
+        // Defaults to the shared `TempWorkspace`, which owns the temp layout and its deterministic
+        // purge (task 10.3).
+        let root = rootDirectory ?? TempWorkspace.importsRoot
         self.photoLoader = PhotoOriginalLoader(
             rootDirectory: root, supportedContentTypes: supportedContentTypes
         )
@@ -173,6 +172,14 @@ final class ImportService {
         items.removeAll { $0.id == id }
         active.removeAll { $0.id == id }
         skipped.removeAll { $0.id == id }
+    }
+
+    /// Reorders the ready queue, backing drag-to-reorder of PDF pages (task 5.5). The offsets are
+    /// positions within `items` (the only collection the reorder UI shows); in-flight downloads and
+    /// skipped rows keep their own ordering. The engine and `PDFBuilder` read `items` in order, so
+    /// the produced PDF matches the arranged order.
+    func move(fromOffsets source: IndexSet, toOffset destination: Int) {
+        items.move(fromOffsets: source, toOffset: destination)
     }
 
     /// Clears the skipped list (e.g. after the user has acknowledged it).

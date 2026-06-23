@@ -52,14 +52,12 @@ actor PDFBuilder {
     static let defaultFileName = "Combined.pdf"
 
     /// Root directory PDFs are written under; each build gets a unique subdirectory inside it.
-    /// Defaults to a dedicated folder in the system temporary directory (temp purging is task 10.3).
+    /// Defaults to the shared `TempWorkspace`, which owns the temp layout and its deterministic
+    /// purge (task 10.3).
     private let outputDirectory: URL
 
     init(outputDirectory: URL? = nil) {
-        self.outputDirectory = outputDirectory
-            ?? FileManager.default.temporaryDirectory.appending(
-                path: "PDFBuilder", directoryHint: .isDirectory
-            )
+        self.outputDirectory = outputDirectory ?? TempWorkspace.pdfOutputsRoot
     }
 
     /// Builds a single multi-page PDF from `sources`, one page per image, in the order given,

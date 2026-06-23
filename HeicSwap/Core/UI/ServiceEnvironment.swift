@@ -32,3 +32,31 @@ extension EnvironmentValues {
         set { self[PurchaseServiceKey.self] = newValue }
     }
 }
+
+// MARK: - Entitlement Store
+
+private struct EntitlementStoreKey: EnvironmentKey {
+    /// Free-tier default backed by a no-op client, for previews and views rendered outside the app.
+    static let defaultValue = EntitlementStore(purchaseClient: StubPurchaseClient())
+}
+
+extension EnvironmentValues {
+    var entitlementStore: EntitlementStore {
+        get { self[EntitlementStoreKey.self] }
+        set { self[EntitlementStoreKey.self] = newValue }
+    }
+}
+
+// MARK: - Conversion Defaults
+
+private struct ConversionDefaultsKey: EnvironmentKey {
+    /// A standalone defaults store for previews and views rendered outside the app.
+    static let defaultValue = ConversionDefaults()
+}
+
+extension EnvironmentValues {
+    var conversionDefaults: ConversionDefaults {
+        get { self[ConversionDefaultsKey.self] }
+        set { self[ConversionDefaultsKey.self] = newValue }
+    }
+}

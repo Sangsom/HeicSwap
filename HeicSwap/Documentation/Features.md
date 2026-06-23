@@ -11,7 +11,7 @@
 
 - **PurchaseService** — Wraps RevenueCat for subscriptions. Configured in `AppState.loadInitialState()`.
 - **Entitlement** — Set the entitlement ID in the RevenueCat Dashboard; must match `PurchaseService` (default: `"pro"`).
-- **PaywallPresenter** — Thin wrapper around RevenueCat `PaywallView` with purchase/restore callbacks.
+- **PaywallSheet** (`Features/Paywall/`) — Custom Warm Darkroom paywall: on-device badge, honest benefits, annual default, weekly/lifetime, Restore + Terms/Privacy. Prices from `EntitlementStore`; no RevenueCat-hosted UI.
 
 ## Analytics & Privacy
 

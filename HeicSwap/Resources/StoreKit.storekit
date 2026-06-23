@@ -1,0 +1,147 @@
+{
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "en_US",
+        "policyText" : "",
+        "policyURL" : ""
+      }
+    ]
+  },
+  "identifier" : "EFD8603B",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "19.99",
+      "familyShareable" : false,
+      "internalID" : "6782882535",
+      "localizations" : [
+        {
+          "description" : "HeicSwap Pro Lifetime",
+          "displayName" : "HeicSwap Pro Lifetime",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.domanovs.rinalds.HeicSwap.lifetime",
+      "referenceName" : "Pro Lifetime",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "6782743629",
+    "_askToBuyEnabled" : false,
+    "_billingGracePeriodEnabled" : false,
+    "_billingIssuesEnabled" : false,
+    "_developerTeamID" : "M86S59A27L",
+    "_disableDialogs" : false,
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 803829974.13460398,
+    "_locale" : "en_US",
+    "_renewalBillingIssuesEnabled" : false,
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ],
+    "_timeRate" : 0
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "22174017",
+      "localizations" : [
+        {
+          "description" : "",
+          "displayName" : "HeicSwap Pro",
+          "locale" : "en_US"
+        }
+      ],
+      "name" : "HeicSwap Pro",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "billingPlans" : [
+            {
+              "billingPlanType" : "BILLED_UPFRONT",
+              "commitmentDisplayPrice" : "9.99",
+              "displayPrice" : "9.99",
+              "internalID" : "6782748866_BILLED_UPFRONT",
+              "isEnabled" : true
+            }
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "9.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "6782748866",
+          "introductoryOffers" : [
+
+          ],
+          "localizations" : [
+            {
+              "description" : "HeicSwap Pro Annual subscription",
+              "displayName" : "HeicSwap Pro Annual",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.domanovs.rinalds.HeicSwap.pro.annual",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "HeicSwap Pro Annual",
+          "subscriptionGroupID" : "22174017",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "billingPlans" : [
+            {
+              "billingPlanType" : "BILLED_UPFRONT",
+              "commitmentDisplayPrice" : "1.99",
+              "displayPrice" : "1.99",
+              "internalID" : "6782749119_BILLED_UPFRONT",
+              "isEnabled" : true
+            }
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "1.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "6782749119",
+          "introductoryOffers" : [
+
+          ],
+          "localizations" : [
+            {
+              "description" : "HeicSwap Pro Weekly subscription",
+              "displayName" : "HeicSwap Pro Weekly",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.domanovs.rinalds.HeicSwap.pro.weekly",
+          "recurringSubscriptionPeriod" : "P1W",
+          "referenceName" : "HeicSwap Pro Weekly",
+          "subscriptionGroupID" : "22174017",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 5,
+    "minor" : 0
+  }
+}
