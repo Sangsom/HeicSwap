@@ -16,6 +16,16 @@
 default_platform(:ios)
 
 platform :ios do
+  desc "Run the unit test suite (used by CI on every PR)"
+  lane :test do
+    run_tests(
+      scheme: "HeicSwap",
+      devices: ["iPhone 17"],
+      result_bundle: true,
+      output_directory: "./build/test-output"
+    )
+  end
+
   desc "Build the app for App Store distribution"
   lane :build do
     gym(
